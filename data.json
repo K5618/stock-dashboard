@@ -1,6 +1,6 @@
 {
   "status": {
-    "last_updated": "2026-04-03 23:27:52 (UTC+8)"
+    "last_updated": "2026-04-03 23:36:22 (UTC+8)"
   },
   "indices": {
     "data": [
@@ -621,6 +621,18 @@
         ],
         "top_gainers": [
           {
+            "symbol": "MKGAF",
+            "name": "Merck KGaA",
+            "sector": "Healthcare",
+            "industry": "Drug Manufacturers - Specialty & Generic",
+            "date": "2026-04-02",
+            "close_price": 128.10000610351562,
+            "change_pt": 4.230003356933594,
+            "change_pct": 3.4148730630025868,
+            "volume": 400.0,
+            "market_cap": 55695048704
+          },
+          {
             "symbol": "GLAXF",
             "name": "GSK plc",
             "sector": "Healthcare",
@@ -643,18 +655,6 @@
             "change_pct": 2.2476811838276243,
             "volume": 1266200.0,
             "market_cap": 63183564800
-          },
-          {
-            "symbol": "CVS",
-            "name": "CVS Health Corporation",
-            "sector": "Healthcare",
-            "industry": "Healthcare Plans",
-            "date": "2026-04-02",
-            "close_price": 73.48999786376953,
-            "change_pt": 1.0,
-            "change_pct": 1.3795006614282155,
-            "volume": 6034300.0,
-            "market_cap": 93494788096
           }
         ]
       },
@@ -867,6 +867,18 @@
             "market_cap": 87736950784
           },
           {
+            "symbol": "CTVA",
+            "name": "Corteva Inc",
+            "sector": "Basic Materials",
+            "industry": "Agricultural Inputs",
+            "date": "2026-04-02",
+            "close_price": 85.45999908447266,
+            "change_pt": 1.6500015258789062,
+            "change_pct": 1.968740691974543,
+            "volume": 3669600.0,
+            "market_cap": 57473904640
+          },
+          {
             "symbol": "LIN",
             "name": "Linde plc",
             "sector": "Basic Materials",
@@ -877,18 +889,6 @@
             "change_pct": 1.7759187918343677,
             "volume": 2127100.0,
             "market_cap": 232901902336
-          },
-          {
-            "symbol": "RTNTF",
-            "name": "Rio Tinto Limited",
-            "sector": "Basic Materials",
-            "industry": "Other Industrial Metals & Mining",
-            "date": "2026-04-02",
-            "close_price": 113.38999938964844,
-            "change_pt": 1.9099960327148438,
-            "change_pct": 1.7133081944745474,
-            "volume": 600.0,
-            "market_cap": 196765696000
           }
         ]
       },
