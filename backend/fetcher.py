@@ -23,17 +23,22 @@ def get_stock_universe():
     try:
         url = "https://scanner.tradingview.com/america/scan"
         query = {
-            "columns": ["name"],
+            "columns": ["name", "description"],
             "sort": {"sortBy": "market_cap_basic", "sortOrder": "desc"},
             "range": [0, 600]
         }
         res = requests.post(url, json=query).json()
-        raw_tickers = [x['d'][0] for x in res['data']]
-        clean_tickers = [t.replace(".", "-") for t in raw_tickers if "/" not in t]
-        return list(set(clean_tickers))
+        clean_tickers = {}
+        for x in res['data']:
+            t = x['d'][0]
+            desc = x['d'][1]
+            if "/" not in t:
+                clean = t.replace(".", "-")
+                clean_tickers[clean] = desc
+        return clean_tickers
     except Exception as e:
         print("Error getting universe from tradingview:", e)
-        return ["AAPL", "MSFT", "NVDA", "TSM", "AVGO", "GOOG", "AMZN", "META", "TSLA", "AMD"]
+        return {"AAPL": "Apple Inc.", "MSFT": "Microsoft", "NVDA": "NVIDIA", "TSM": "TSMC"}
 
 def fetch_info(sym):
     try:
@@ -91,7 +96,8 @@ def update_all_data():
             print(f"Error fetching ETF {symbol}: {e}")
 
     # 3. Update Stocks
-    tickers = get_stock_universe()
+    ticker_dict = get_stock_universe()
+    tickers = list(ticker_dict.keys())
     if tickers:
         print(f"Fetching prices for {len(tickers)} stocks...")
         prices = yf.download(tickers, period="5d", group_by="ticker", auto_adjust=True, threads=True)
@@ -123,8 +129,9 @@ def update_all_data():
                     cap = info_dict.get(sym, {}).get('market_cap', 0)
                     
                     if sec != "Unknown" and cap > 0:
+                        company_name = ticker_dict.get(sym, sym)
                         all_stocks.append({
-                            "symbol": sym, "name": sym, "sector": sec, "industry": ind,
+                            "symbol": sym, "name": company_name, "sector": sec, "industry": ind,
                             "date": date_str, "close_price": close, "change_pt": change,
                             "change_pct": change_pct, "volume": vol, "market_cap": cap
                         })

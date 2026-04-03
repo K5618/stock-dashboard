@@ -7,10 +7,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        up: "#10B981",
-        down: "#EF4444",
-        bgDark: "#0F172A",
-        cardDark: "#1E293B",
+        up: '#089981',      // TradingView Green
+        down: '#F23645',    // TradingView Red
+        primary: '#2962FF', // TradingView Blue
+        bgLight: '#F8F9FA',      
+        cardLight: '#FFFFFF',
+        textDark: '#131722',
+        textMuted: '#787B86'
       }
     },
   },
