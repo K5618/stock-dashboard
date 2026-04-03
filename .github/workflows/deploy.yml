@@ -1,0 +1,49 @@
+name: Daily Deploy Stock Dashboard
+
+on:
+  schedule:
+    # 每天 UTC 21:30 執行 (對應台灣時間 05:30)
+    - cron: '30 21 * * *'
+  workflow_dispatch: # 允許手動觸發
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 允許寫入以便推送到 gh-pages 分支
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Python Dependencies
+        run: |
+          pip install yfinance pandas requests
+
+      - name: Generate Stock Data (JSON)
+        run: |
+          # 這裡會執行 fetcher.py 並且產出 data.json 到 frontend/public/
+          python backend/fetcher.py
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Vite and Build Frontend
+        working-directory: ./frontend
+        run: |
+          npm install
+          npm run build
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./frontend/dist
+          publish_branch: gh-pages
