@@ -12,8 +12,10 @@ function App() {
   
   const fetchData = async () => {
     try {
-      // In production (Github Pages), this fetches from the correct subpath
-      const res = await fetch(import.meta.env.BASE_URL + 'data.json?v=' + new Date().getTime())
+      let res = await fetch('data.json?v=' + new Date().getTime());
+      if (!res.ok) {
+        res = await fetch('https://k5618.github.io/stock-dashboard/data.json?v=' + new Date().getTime());
+      }
       const data = await res.json()
       
       setStatus(data.status.last_updated)
@@ -22,7 +24,7 @@ function App() {
       setTopStocks(data.top_stocks.data || {})
     } catch(e) {
       console.error(e)
-      setStatus("Error loading data. Run Action to generate data.json")
+      setStatus("Error loading data. Data may not be generated yet.")
     }
   }
 
@@ -55,16 +57,6 @@ function App() {
               Updated: {status}
             </span>
           </div>
-          <a
-            href={GITHUB_REPO_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 sm:mt-0 flex items-center space-x-2 bg-primary hover:bg-blue-700 text-white px-5 py-2 rounded-lg transition-colors font-semibold text-sm shadow-sm hover:shadow-md"
-          >
-            <RefreshCw size={16} />
-            <span>Update Data</span>
-            <ExternalLink size={14} className="opacity-70" />
-          </a>
         </div>
       </div>
 
