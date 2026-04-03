@@ -12,8 +12,8 @@ function App() {
   
   const fetchData = async () => {
     try {
-      // In production (Github Pages), this fetches relative from public directory
-      const res = await fetch('./data.json?v=' + new Date().getTime())
+      // In production (Github Pages), this fetches from the correct subpath
+      const res = await fetch(import.meta.env.BASE_URL + 'data.json?v=' + new Date().getTime())
       const data = await res.json()
       
       setStatus(data.status.last_updated)
