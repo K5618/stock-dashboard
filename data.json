@@ -1,6 +1,6 @@
 {
   "status": {
-    "last_updated": "2026-04-04 05:56:44 (UTC+8)"
+    "last_updated": "2026-04-04 09:27:16 (UTC+8)"
   },
   "indices": {
     "data": [
@@ -538,7 +538,7 @@
             "change_pt": -0.970001220703125,
             "change_pct": -0.6731912314221141,
             "volume": 5941700.0,
-            "market_cap": 334970257408
+            "market_cap": 334433288192
           }
         ],
         "top_gainers": [
