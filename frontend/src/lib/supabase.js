@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+// Hardcoded safe public constants to ensure GitHub Actions builds successfully without requiring .env
+const supabaseUrl = 'https://qztvrwfwdrlnukrjnymm.supabase.co'
+const supabaseAnonKey = 'sb_publishable_gMvgZMYT5_cqn6Zj6ycg5w_b9wTpXxP'
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
