@@ -14,12 +14,18 @@ function App() {
   const [sectors, setSectors] = useState([])
   const [topStocks, setTopStocks] = useState({})
   
+  const [screener, setScreener] = useState(null)
+  
   // Interaction States
   const [selectedSector, setSelectedSector] = useState(null)
   
   // Sorting States
   const [sortSectors, setSortSectors] = useState({ key: 'change_pct', direction: 'desc' })
   const [sortStocks, setSortStocks] = useState({ key: 'market_cap', direction: 'desc' })
+
+  // Screener States
+  const [screenerTab, setScreenerTab] = useState('upward') // 'upward' | 'downward'
+  const [activeFilter, setActiveFilter] = useState('gain_3') // default for upward
 
   const handleLogin = (e) => {
     e.preventDefault()
@@ -44,11 +50,12 @@ function App() {
       const data = snapshots[0].data
       
       setStatus(data.status.last_updated)
-      setIndices(data.indices.data || { US: [], Europe: [], Asia: [] })
-      setSectors(data.sectors.data || [])
-      setTopStocks(data.top_stocks.data || {})
+      setIndices(data.indices?.data || { US: [], Europe: [], Asia: [] })
+      setSectors(data.sectors?.data || [])
+      setTopStocks(data.top_stocks?.data || {})
+      setScreener(data.screener || null)
       
-      if (data.sectors.data && data.sectors.data.length > 0) {
+      if (data.sectors?.data?.length > 0) {
         setSelectedSector(data.sectors.data[0].name)
       }
     } catch(e) {
@@ -115,6 +122,35 @@ function App() {
     return 0
   })
 
+  // --- Screener Grouping Logic ---
+  const getActiveScreenerList = () => {
+    if (!screener) return []
+    // activeFilter defines which block and array we target
+    const filterMap = {
+      'gain_3': screener.block1?.gain_3, 'gain_5': screener.block1?.gain_5, 'gain_10': screener.block1?.gain_10,
+      'h_30': screener.block2?.h_30, 'h_90': screener.block2?.h_90, 'h_180': screener.block2?.h_180, 'h_all': screener.block2?.h_all,
+      'loss_3': screener.block3?.loss_3, 'loss_5': screener.block3?.loss_5, 'loss_10': screener.block3?.loss_10,
+      'l_30': screener.block4?.l_30, 'l_90': screener.block4?.l_90, 'l_180': screener.block4?.l_180, 'l_all': screener.block4?.l_all
+    }
+    return filterMap[activeFilter] || []
+  }
+
+  // Group an array of stocks into { "Sector": { "Industry": [stocks] } }
+  const groupedScreenerData = () => {
+    const list = getActiveScreenerList()
+    const groups = {}
+    list.forEach(item => {
+      const sec = item.sector || "Unknown Sector"
+      const ind = item.industry || "Unknown Industry"
+      if (!groups[sec]) groups[sec] = {}
+      if (!groups[sec][ind]) groups[sec][ind] = []
+      groups[sec][ind].push(item)
+    })
+    return groups
+  }
+  
+  const currentGroups = groupedScreenerData()
+
   // Render Login overlay if not authenticated
   if (!isAuth) {
     return (
@@ -149,7 +185,6 @@ function App() {
     )
   }
 
-  // TradingView Style Summary Card Component
   const MarketCard = ({ item }) => (
     <div className="bg-cardLight p-4 flex flex-col justify-between border-r border-b border-borderLight cursor-default hover:bg-[#F8F9FA] transition-colors">
       <div className="flex justify-between items-start mb-3">
@@ -184,7 +219,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-bgLight selection:bg-borderLight">
+    <div className="min-h-screen bg-bgLight selection:bg-borderLight pb-12">
       {/* Top Navigation Bar */}
       <nav className="bg-cardLight border-b border-borderLight sticky top-0 z-10 shadow-sm">
         <div className="max-w-[1600px] mx-auto px-4 lg:px-8 py-3 flex justify-between items-center w-full">
@@ -206,7 +241,6 @@ function App() {
       {/* Main Content Area */}
       <main className="max-w-[1600px] mx-auto px-4 lg:px-8 py-8 w-full space-y-10">
         
-        {/* Section: Global Indices grouped by region */}
         <section>
           <div className="flex justify-between items-end mb-4 border-b border-borderLight pb-2">
             <h2 className="text-xl font-bold text-textMain">Major Indices</h2>
@@ -226,14 +260,12 @@ function App() {
           </div>
         </section>
 
-        {/* Section: Split View Sectors & Stocks */}
         <section>
           <div className="flex justify-between items-end mb-4 border-b border-borderLight pb-2">
             <h2 className="text-xl font-bold text-textMain">Sectors Performance & Top Components</h2>
           </div>
           
           <div className="flex flex-col lg:flex-row gap-6 items-start">
-            {/* Left Column: Sectors Table */}
             <div className="w-full lg:w-[400px] flex-shrink-0 bg-cardLight border border-borderLight shadow-sm">
               <div className="px-4 py-3 border-b border-borderLight bg-[#F8F9FA]">
                 <h3 className="font-semibold text-textMain text-sm uppercase tracking-wider">US Sectors (ETFs)</h3>
@@ -266,7 +298,6 @@ function App() {
               </div>
             </div>
 
-            {/* Right Column: Top Stocks Table */}
             <div className="flex-1 w-full bg-cardLight border border-borderLight shadow-sm overflow-x-auto">
               <div className="px-4 py-3 border-b border-borderLight bg-[#F8F9FA] flex justify-between items-center min-w-[700px]">
                 <h3 className="font-semibold text-textMain text-sm uppercase tracking-wider">
@@ -310,6 +341,125 @@ function App() {
               </div>
             </div>
             
+          </div>
+        </section>
+
+        {/* --- NEW QUANT SCREENER SECTION --- */}
+        <section>
+          <div className="flex justify-between items-end mb-4 border-b border-borderLight pb-2 mt-8">
+            <h2 className="text-xl font-bold text-textMain">US Top 1200 Quant Screener</h2>
+          </div>
+          
+          <div className="bg-cardLight border border-borderLight shadow-sm rounded overflow-hidden">
+            
+            {/* Top Level Tabs */}
+            <div className="flex border-b border-borderLight">
+              <button 
+                className={`flex-1 py-3 font-semibold text-sm transition-colors uppercase tracking-wider
+                ${screenerTab === 'upward' ? 'bg-[#F8F9FA] text-up border-b-2 border-b-up' : 'text-textMuted hover:text-textMain'}`}
+                onClick={() => { setScreenerTab('upward'); setActiveFilter('gain_3') }}
+              >
+                Upward Trends (Gains & Highs)
+              </button>
+              <button 
+                className={`flex-1 py-3 font-semibold text-sm transition-colors uppercase tracking-wider
+                ${screenerTab === 'downward' ? 'bg-[#F8F9FA] text-down border-b-2 border-b-down' : 'text-textMuted hover:text-textMain'}`}
+                onClick={() => { setScreenerTab('downward'); setActiveFilter('loss_3') }}
+              >
+                Downward Trends (Losses & Lows)
+              </button>
+            </div>
+
+            {/* Sub-Filters */}
+            <div className="p-4 bg-[#F8F9FA] border-b border-borderLight flex flex-wrap gap-2">
+              {screenerTab === 'upward' ? (
+                <>
+                  <span className="text-xs font-bold text-textMuted mr-2 my-auto">GAIN (Block 1):</span>
+                  {['gain_3| > 3%', 'gain_5| > 5%', 'gain_10| > 10%'].map(f => {
+                    const [k, lbl] = f.split('|');
+                    return <button key={k} onClick={() => setActiveFilter(k)} className={`px-3 py-1.5 rounded text-xs font-semibold transition ${activeFilter === k ? 'bg-primary text-white' : 'bg-white border border-borderLight text-textMain hover:bg-gray-100'}`}>{lbl}</button>
+                  })}
+                  <span className="text-xs font-bold text-textMuted ml-6 mr-2 my-auto">HIGHS (Block 2):</span>
+                  {['h_30|30-Day High', 'h_90|90-Day High', 'h_180|180-Day High', 'h_all|All-Time High'].map(f => {
+                    const [k, lbl] = f.split('|');
+                    return <button key={k} onClick={() => setActiveFilter(k)} className={`px-3 py-1.5 rounded text-xs font-semibold transition ${activeFilter === k ? 'bg-primary text-white' : 'bg-white border border-borderLight text-textMain hover:bg-gray-100'}`}>{lbl}</button>
+                  })}
+                </>
+              ) : (
+                <>
+                  <span className="text-xs font-bold text-textMuted mr-2 my-auto">LOSS (Block 3):</span>
+                  {['loss_3| < -3%', 'loss_5| < -5%', 'loss_10| < -10%'].map(f => {
+                    const [k, lbl] = f.split('|');
+                    return <button key={k} onClick={() => setActiveFilter(k)} className={`px-3 py-1.5 rounded text-xs font-semibold transition ${activeFilter === k ? 'bg-primary text-white' : 'bg-white border border-borderLight text-textMain hover:bg-gray-100'}`}>{lbl}</button>
+                  })}
+                  <span className="text-xs font-bold text-textMuted ml-6 mr-2 my-auto">LOWS (Block 4):</span>
+                  {['l_30|30-Day Low', 'l_90|90-Day Low', 'l_180|180-Day Low', 'l_all|All-Time Low'].map(f => {
+                    const [k, lbl] = f.split('|');
+                    return <button key={k} onClick={() => setActiveFilter(k)} className={`px-3 py-1.5 rounded text-xs font-semibold transition ${activeFilter === k ? 'bg-primary text-white' : 'bg-white border border-borderLight text-textMain hover:bg-gray-100'}`}>{lbl}</button>
+                  })}
+                </>
+              )}
+            </div>
+
+            {/* Screener Output grouped by Sector -> Industry */}
+            <div className="p-4 bg-white min-h-[400px]">
+              {Object.keys(currentGroups).length === 0 ? (
+                <div className="text-center py-20 text-textMuted">
+                  No stocks match this criteria in the current session.
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {Object.entries(currentGroups).map(([sectorName, industriesObj]) => (
+                    <div key={sectorName} className="border border-borderLight rounded-lg overflow-hidden shadow-sm">
+                      <div className="bg-[#131722] px-4 py-2 text-white font-bold tracking-wide uppercase text-sm">
+                        {sectorName}
+                      </div>
+                      
+                      {Object.entries(industriesObj).map(([industryName, stocksArr]) => (
+                        <div key={industryName} className="border-t border-borderLight first:border-0">
+                          <div className="bg-[#F8F9FA] px-4 py-1.5 border-b border-borderLight">
+                            <span className="text-xs font-semibold text-textMuted uppercase tracking-wider">{industryName}</span>
+                            <span className="ml-2 text-xs font-bold text-textMain bg-white px-2 py-0.5 rounded border border-borderLight">{stocksArr.length}</span>
+                          </div>
+                          
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                              <thead className="text-xs uppercase text-textMuted bg-white border-b border-borderLight">
+                                <tr>
+                                  <th className="px-4 py-2 font-semibold">Date</th>
+                                  <th className="px-4 py-2 font-semibold">Symbol</th>
+                                  <th className="px-4 py-2 font-semibold">Name</th>
+                                  <th className="px-4 py-2 font-semibold text-right">Close</th>
+                                  <th className="px-4 py-2 font-semibold text-right">Change %</th>
+                                  <th className="px-4 py-2 font-semibold text-right">Volume</th>
+                                  <th className="px-4 py-2 font-semibold text-right">Mkt Cap</th>
+                                  <th className="px-4 py-2 font-semibold text-right">P/E (TTM)</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-borderLight">
+                                {stocksArr.sort((a,b) => b.market_cap - a.market_cap).map(stock => (
+                                  <tr key={stock.symbol} className="hover:bg-[#F8F9FA] transition-colors">
+                                    <td className="px-4 py-2 text-textMuted whitespace-nowrap">{stock.date}</td>
+                                    <td className="px-4 py-2 font-bold text-textMain">{stock.symbol}</td>
+                                    <td className="px-4 py-2 text-textMuted truncate max-w-[200px]" title={stock.name}>{stock.name}</td>
+                                    <td className="px-4 py-2 text-right font-medium text-textMain tabular-nums">{formatPrice(stock.close_price)}</td>
+                                    <td className="px-4 py-2 text-right tabular-nums"><ValueCell item={stock} isPct /></td>
+                                    <td className="px-4 py-2 text-right text-textMuted tabular-nums">{formatLargeNum(stock.volume)}</td>
+                                    <td className="px-4 py-2 text-right text-textMuted tabular-nums">{formatLargeNum(stock.market_cap)}</td>
+                                    <td className="px-4 py-2 text-right text-textMuted tabular-nums">{stock.pe_ratio ? stock.pe_ratio.toFixed(2) : '-'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
           </div>
         </section>
 
