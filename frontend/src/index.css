@@ -4,24 +4,24 @@
 
 @layer base {
   body {
-    @apply bg-bgDark text-textMain antialiased;
+    @apply bg-bgLight text-textMain antialiased;
     margin: 0;
     min-height: 100vh;
   }
 }
 
-/* Custom scrollbar for webkit to match dark theme sleekness */
+/* Custom scrollbar for webkit (Light Theme) */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #131722; 
+  background: #F8F9FA; 
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a2e39; 
+  background: #E0E3EB; 
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #787b86; 
+  background: #d1d4dc; 
 }

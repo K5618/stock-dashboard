@@ -1,13 +1,35 @@
 import { useState, useEffect } from 'react'
-import { RefreshCw, ExternalLink } from 'lucide-react'
 import { supabase } from './lib/supabase'
 
 function App() {
+  const [isAuth, setIsAuth] = useState(false)
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [authError, setAuthError] = useState('')
+
   const [status, setStatus] = useState("Loading...")
-  const [indices, setIndices] = useState([])
+  const [indices, setIndices] = useState({ US: [], Europe: [], Asia: [] })
+  
+  // Data sets
   const [sectors, setSectors] = useState([])
   const [topStocks, setTopStocks] = useState({})
   
+  // Interaction States
+  const [selectedSector, setSelectedSector] = useState(null)
+  
+  // Sorting States
+  const [sortSectors, setSortSectors] = useState({ key: 'change_pct', direction: 'desc' })
+  const [sortStocks, setSortStocks] = useState({ key: 'market_cap', direction: 'desc' })
+
+  const handleLogin = (e) => {
+    e.preventDefault()
+    if (username === 'K5618' && password === 'Kktest5618') {
+      setIsAuth(true)
+    } else {
+      setAuthError('帳號或密碼錯誤 / Invalid credentials')
+    }
+  }
+
   const fetchData = async () => {
     try {
       const { data: snapshots, error } = await supabase
@@ -22,36 +44,114 @@ function App() {
       const data = snapshots[0].data
       
       setStatus(data.status.last_updated)
-      setIndices(data.indices.data || [])
+      setIndices(data.indices.data || { US: [], Europe: [], Asia: [] })
       setSectors(data.sectors.data || [])
       setTopStocks(data.top_stocks.data || {})
+      
+      if (data.sectors.data && data.sectors.data.length > 0) {
+        setSelectedSector(data.sectors.data[0].name)
+      }
     } catch(e) {
       console.error(e)
-      setStatus("Error loading data. Data may not be generated yet.")
+      setStatus("Error loading data.")
     }
   }
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    if (isAuth) {
+      fetchData()
+    }
+  }, [isAuth])
 
   const formatPrice = (val) => val != null ? val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-"
   const formatChange = (val) => val != null ? `${val >= 0 ? '+' : ''}${val.toFixed(2)}` : "-"
+  const formatLargeNum = (num) => {
+    if (!num) return "-"
+    if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T'
+    if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B'
+    if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M'
+    return num.toLocaleString()
+  }
   
   const ValueCell = ({ item, isPct = false }) => {
     const val = isPct ? item.change_pct : item.change_pt
     const isUp = val >= 0
     const color = isUp ? "text-up" : "text-down"
     return (
-      <span className={`${color} font-medium tracking-tight`}>
+      <span className={`${color} font-medium`}>
         {formatChange(val)}{isPct ? '%' : ''}
       </span>
     )
   }
 
+  // --- Sorting Logic ---
+  const handleSortSectors = (key) => {
+    let direction = 'desc'
+    if (sortSectors.key === key && sortSectors.direction === 'desc') {
+      direction = 'asc'
+    }
+    setSortSectors({ key, direction })
+  }
+
+  const handleSortStocks = (key) => {
+    let direction = 'desc'
+    if (sortStocks.key === key && sortStocks.direction === 'desc') {
+      direction = 'asc'
+    }
+    setSortStocks({ key, direction })
+  }
+
+  const sortedSectors = [...sectors].sort((a, b) => {
+    if (a[sortSectors.key] < b[sortSectors.key]) return sortSectors.direction === 'asc' ? -1 : 1
+    if (a[sortSectors.key] > b[sortSectors.key]) return sortSectors.direction === 'asc' ? 1 : -1
+    return 0
+  })
+
+  // Top 10 Stocks computation
+  const activeStocks = selectedSector && topStocks[selectedSector] ? topStocks[selectedSector].top_market_cap : []
+  const sortedStocks = [...activeStocks].sort((a, b) => {
+    if (a[sortStocks.key] < b[sortStocks.key]) return sortStocks.direction === 'asc' ? -1 : 1
+    if (a[sortStocks.key] > b[sortStocks.key]) return sortStocks.direction === 'asc' ? 1 : -1
+    return 0
+  })
+
+  // Render Login overlay if not authenticated
+  if (!isAuth) {
+    return (
+      <div className="min-h-screen bg-[#F8F9FA] flex flex-col justify-center items-center px-4">
+        <div className="max-w-md w-full bg-white p-8 border border-[#E0E3EB] rounded-lg shadow-sm">
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-bold text-[#131722] mb-1">Stock Dashboard</h1>
+            <p className="text-sm text-[#787b86]">Please sign in to view the market data.</p>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-[#131722] mb-1">Username / Account</label>
+              <input 
+                type="text" 
+                className="w-full px-3 py-2 border border-[#E0E3EB] rounded outline-none focus:border-[#2962ff] transition-colors"
+                value={username} onChange={e => setUsername(e.target.value)} required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#131722] mb-1">Password</label>
+              <input 
+                type="password" 
+                className="w-full px-3 py-2 border border-[#E0E3EB] rounded outline-none focus:border-[#2962ff] transition-colors"
+                value={password} onChange={e => setPassword(e.target.value)} required />
+            </div>
+            {authError && <p className="text-[#f23645] text-sm font-medium text-center">{authError}</p>}
+            <button type="submit" className="w-full bg-[#2962ff] hover:bg-[#1e4ad8] text-white font-medium py-2 px-4 rounded transition-colors">
+              Access System
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
   // TradingView Style Summary Card Component
   const MarketCard = ({ item }) => (
-    <div className="bg-cardDark p-4 flex flex-col justify-between hover:bg-[#2a2e39] transition-colors border-r border-b border-borderDark cursor-default">
+    <div className="bg-cardLight p-4 flex flex-col justify-between border-r border-b border-borderLight cursor-default hover:bg-[#F8F9FA] transition-colors">
       <div className="flex justify-between items-start mb-3">
         <div className="overflow-hidden">
           <p className="text-xs text-textMuted font-mono uppercase tracking-wider truncate mb-1">{item.symbol}</p>
@@ -68,125 +168,149 @@ function App() {
     </div>
   );
 
+  const SortableHeader = ({ label, sortKey, currentSort, onSort, align="left" }) => {
+    let icon = "↕";
+    if (currentSort.key === sortKey) {
+      icon = currentSort.direction === 'asc' ? "↑" : "↓";
+    }
+    return (
+      <div 
+        className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider text-textMuted cursor-pointer hover:text-textMain select-none ${align === 'right' ? 'text-right' : ''}`}
+        onClick={() => onSort(sortKey)}
+      >
+        {label} <span className="ml-1 opacity-50">{icon}</span>
+      </div>
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-bgDark selection:bg-borderDark">
-      {/* Sleek Top Navigation Bar */}
-      <nav className="bg-cardDark border-b border-borderDark sticky top-0 z-10">
-        <div className="max-w-screen-2xl mx-auto px-4 lg:px-8 py-3 flex flex-col sm:flex-row justify-between items-center w-full">
+    <div className="min-h-screen bg-bgLight selection:bg-borderLight">
+      {/* Top Navigation Bar */}
+      <nav className="bg-cardLight border-b border-borderLight sticky top-0 z-10 shadow-sm">
+        <div className="max-w-[1600px] mx-auto px-4 lg:px-8 py-3 flex justify-between items-center w-full">
           <div className="flex items-center space-x-6">
             <h1 className="text-xl font-bold tracking-tight text-textMain flex items-center">
-              <span className="text-primary mr-2">●</span> US Markets
+              <span className="text-primary mr-2">●</span> Global Markets
             </h1>
-            <div className="hidden sm:flex space-x-4 text-sm font-medium text-textMuted">
-              <span className="hover:text-textMain cursor-pointer transition-colors">Indices</span>
-              <span className="hover:text-textMain cursor-pointer transition-colors">Sectors</span>
-              <span className="hover:text-textMain cursor-pointer transition-colors">Leaders</span>
-            </div>
           </div>
-          <div className="mt-2 sm:mt-0 flex items-center space-x-3">
-            <div className="flex items-center space-x-1 text-xs text-textMuted bg-bgDark px-3 py-1.5 rounded-sm border border-borderDark">
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-1 text-xs text-textMuted bg-bgLight px-3 py-1.5 rounded-sm border border-borderLight font-mono">
               <span className="inline-block w-2 h-2 rounded-full bg-up animate-pulse mr-1"></span>
-              Live <span className="mx-2">|</span> {status}
+              LIVE DATA <span className="mx-2">|</span> {status}
             </div>
+            <button onClick={() => setIsAuth(false)} className="text-sm text-textMuted hover:text-textMain underline ml-4">登出 Logout</button>
           </div>
         </div>
       </nav>
 
-      {/* Main Content Area - Strictly Centered and Restrained */}
-      <main className="max-w-screen-2xl mx-auto px-4 lg:px-8 py-8 w-full space-y-10">
+      {/* Main Content Area */}
+      <main className="max-w-[1600px] mx-auto px-4 lg:px-8 py-8 w-full space-y-10">
         
-        {/* Section: Global Indices */}
+        {/* Section: Global Indices grouped by region */}
         <section>
-          <div className="flex justify-between items-end mb-4 border-b border-borderDark pb-2">
-            <h2 className="text-lg font-semibold text-textMain">Major Indices</h2>
+          <div className="flex justify-between items-end mb-4 border-b border-borderLight pb-2">
+            <h2 className="text-xl font-bold text-textMain">Major Indices</h2>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 border-l border-t border-borderDark rounded-sm overflow-hidden bg-bgDark">
-            {indices.map(idx => (
-              <MarketCard key={idx.symbol} item={idx} />
-            ))}
-          </div>
-        </section>
-
-        {/* Section: Sectors */}
-        <section>
-          <div className="flex justify-between items-end mb-4 border-b border-borderDark pb-2">
-            <h2 className="text-lg font-semibold text-textMain">Sectors Performance</h2>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 border-l border-t border-borderDark rounded-sm overflow-hidden bg-bgDark">
-            {sectors.map(sec => (
-              <MarketCard key={sec.symbol} item={sec} />
-            ))}
-          </div>
-        </section>
-
-        {/* Section: Top Stocks Data Tables */}
-        <section>
-          <div className="flex justify-between items-end mb-4 border-b border-borderDark pb-2">
-            <h2 className="text-lg font-semibold text-textMain">Sector Leaders & Gainers</h2>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
-            {Object.entries(topStocks).map(([sector, data]) => (
-              <div key={sector} className="bg-cardDark border border-borderDark rounded-sm overflow-hidden flex flex-col shadow-lg">
-                <div className="px-4 py-3 border-b border-borderDark flex items-center justify-between bg-[#1a1e27]">
-                  <h3 className="font-semibold text-textMain text-sm uppercase tracking-wider">{sector}</h3>
-                </div>
-                
-                <div className="flex-1">
-                  {/* Table Header */}
-                  <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs font-medium text-textMuted border-b border-borderDark bg-[#1e222d]">
-                    <div className="col-span-6">Symbol</div>
-                    <div className="col-span-3 text-right">Last</div>
-                    <div className="col-span-3 text-right">Chg%</div>
-                  </div>
-                  
-                  {/* Market Cap Leaders */}
-                  <div className="divide-y divide-borderDark">
-                    <div className="px-4 py-1 bg-[#1a1e27] text-xs font-semibold text-primary">Largest by Market Cap</div>
-                    {data.top_market_cap.map(stock => (
-                      <div key={stock.symbol} className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center hover:bg-[#2a2e39] transition-colors cursor-default text-sm">
-                        <div className="col-span-6 flex flex-col justify-center overflow-hidden">
-                          <span className="font-bold text-textMain truncate">{stock.symbol}</span>
-                          <span className="text-xs text-textMuted truncate">{stock.name}</span>
-                        </div>
-                        <div className="col-span-3 text-right font-medium text-textMain tabular-nums">
-                          {formatPrice(stock.close_price)}
-                        </div>
-                        <div className="col-span-3 text-right tabular-nums">
-                          <ValueCell item={stock} isPct />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Top Gainers Divider */}
-                  <div className="divide-y divide-borderDark border-t border-borderDark">
-                    <div className="px-4 py-1 bg-[#1a1e27] text-xs font-semibold text-up">Top Gainers</div>
-                    {data.top_gainers.map(stock => (
-                      <div key={stock.symbol} className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center hover:bg-[#2a2e39] transition-colors cursor-default text-sm">
-                        <div className="col-span-6 flex flex-col justify-center overflow-hidden">
-                          <span className="font-bold text-textMain truncate">{stock.symbol}</span>
-                          <span className="text-xs text-textMuted truncate">{stock.name}</span>
-                        </div>
-                        <div className="col-span-3 text-right font-medium text-textMain tabular-nums">
-                          {formatPrice(stock.close_price)}
-                        </div>
-                        <div className="col-span-3 text-right tabular-nums">
-                          <ValueCell item={stock} isPct />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+          <div className="space-y-6">
+            {['US', 'Europe', 'Asia'].map(region => (
+              <div key={region}>
+                <h3 className="text-sm font-semibold text-textMuted uppercase tracking-wider mb-2">{region} Markets</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 border-l border-t border-borderLight bg-bgLight overflow-hidden">
+                  {(indices[region] || []).map(idx => (
+                    <MarketCard key={idx.symbol} item={idx} />
+                  ))}
+                  {(indices[region] || []).length === 0 && <div className="p-4 text-xs text-textMuted border-b border-r border-borderLight">No data</div>}
                 </div>
               </div>
             ))}
           </div>
+        </section>
 
-          {Object.keys(topStocks).length === 0 && (
-            <div className="text-center py-24 bg-cardDark border border-borderDark rounded-sm text-textMuted">
-              Market data is currently unavailable.
+        {/* Section: Split View Sectors & Stocks */}
+        <section>
+          <div className="flex justify-between items-end mb-4 border-b border-borderLight pb-2">
+            <h2 className="text-xl font-bold text-textMain">Sectors Performance & Top Components</h2>
+          </div>
+          
+          <div className="flex flex-col lg:flex-row gap-6 items-start">
+            {/* Left Column: Sectors Table */}
+            <div className="w-full lg:w-[400px] flex-shrink-0 bg-cardLight border border-borderLight shadow-sm">
+              <div className="px-4 py-3 border-b border-borderLight bg-[#F8F9FA]">
+                <h3 className="font-semibold text-textMain text-sm uppercase tracking-wider">US Sectors (ETFs)</h3>
+              </div>
+              <div className="grid grid-cols-12 bg-bgLight border-b border-borderLight">
+                <div className="col-span-6"><SortableHeader label="Sector" sortKey="name" currentSort={sortSectors} onSort={handleSortSectors} /></div>
+                <div className="col-span-3"><SortableHeader label="Price" sortKey="close_price" currentSort={sortSectors} onSort={handleSortSectors} align="right" /></div>
+                <div className="col-span-3"><SortableHeader label="Chg %" sortKey="change_pct" currentSort={sortSectors} onSort={handleSortSectors} align="right" /></div>
+              </div>
+              <div className="divide-y divide-borderLight max-h-[800px] overflow-y-auto">
+                {sortedSectors.map(sec => (
+                  <div 
+                    key={sec.symbol} 
+                    onClick={() => setSelectedSector(sec.name)}
+                    className={`grid grid-cols-12 gap-2 px-4 py-3 items-center cursor-pointer transition-colors text-sm
+                      ${selectedSector === sec.name ? 'bg-[#E3EBFF] border-l-4 border-l-[#2962ff]' : 'hover:bg-[#F8F9FA] border-l-4 border-l-transparent'}`}
+                  >
+                    <div className="col-span-6 flex flex-col justify-center overflow-hidden">
+                      <span className="font-bold text-textMain truncate">{sec.symbol}</span>
+                      <span className="text-xs text-textMuted truncate" title={sec.name}>{sec.name}</span>
+                    </div>
+                    <div className="col-span-3 text-right font-medium text-textMain tabular-nums">
+                      {formatPrice(sec.close_price)}
+                    </div>
+                    <div className="col-span-3 text-right tabular-nums">
+                      <ValueCell item={sec} isPct />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          )}
+
+            {/* Right Column: Top Stocks Table */}
+            <div className="flex-1 w-full bg-cardLight border border-borderLight shadow-sm overflow-x-auto">
+              <div className="px-4 py-3 border-b border-borderLight bg-[#F8F9FA] flex justify-between items-center min-w-[700px]">
+                <h3 className="font-semibold text-textMain text-sm uppercase tracking-wider">
+                  Top 10 Stocks: <span className="text-primary">{selectedSector || 'Select a Sector'}</span>
+                </h3>
+              </div>
+              
+              <div className="grid grid-cols-12 min-w-[700px] bg-bgLight border-b border-borderLight">
+                <div className="col-span-3"><SortableHeader label="Symbol/Name" sortKey="symbol" currentSort={sortStocks} onSort={handleSortStocks} /></div>
+                <div className="col-span-2"><SortableHeader label="Close" sortKey="close_price" currentSort={sortStocks} onSort={handleSortStocks} align="right" /></div>
+                <div className="col-span-2"><SortableHeader label="Chg %" sortKey="change_pct" currentSort={sortStocks} onSort={handleSortStocks} align="right" /></div>
+                <div className="col-span-2"><SortableHeader label="Volume" sortKey="volume" currentSort={sortStocks} onSort={handleSortStocks} align="right" /></div>
+                <div className="col-span-3"><SortableHeader label="Mkt Cap" sortKey="market_cap" currentSort={sortStocks} onSort={handleSortStocks} align="right" /></div>
+              </div>
+              
+              <div className="divide-y divide-borderLight min-w-[700px]">
+                {sortedStocks.length > 0 ? sortedStocks.map(stock => (
+                  <div key={stock.symbol} className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-[#F8F9FA] transition-colors cursor-default text-sm">
+                    <div className="col-span-3 flex flex-col justify-center overflow-hidden">
+                      <span className="font-bold text-textMain truncate">{stock.symbol}</span>
+                      <span className="text-xs text-textMuted truncate" title={stock.name}>{stock.name}</span>
+                    </div>
+                    <div className="col-span-2 text-right font-medium text-textMain tabular-nums">
+                      {formatPrice(stock.close_price)}
+                    </div>
+                    <div className="col-span-2 text-right tabular-nums">
+                      <ValueCell item={stock} isPct />
+                    </div>
+                    <div className="col-span-2 text-right font-medium text-textMuted tabular-nums">
+                      {formatLargeNum(stock.volume)}
+                    </div>
+                    <div className="col-span-3 text-right font-medium text-textMuted tabular-nums pr-2">
+                       {formatLargeNum(stock.market_cap)}
+                    </div>
+                  </div>
+                )) : (
+                  <div className="text-center py-24 text-textMuted">
+                    {selectedSector ? 'No data available for this sector.' : 'Select a sector from the left to view components.'}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+          </div>
         </section>
 
       </main>

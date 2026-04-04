@@ -10,10 +10,10 @@ export default {
         up: '#089981',        // TV Green
         down: '#f23645',      // TV Red
         primary: '#2962ff',   // TV Blue
-        bgDark: '#131722',    // Primary dark background
-        cardDark: '#1e222d',  // Component background
-        borderDark: '#2a2e39',// Lines and dividers
-        textMain: '#d1d4dc',  // Primary light text
+        bgLight: '#F8F9FA',   // White/Grey Background
+        cardLight: '#FFFFFF', // Pure White Component Backs
+        borderLight: '#E0E3EB', // Light dividers
+        textMain: '#131722',  // Primary Dark Text (TV)
         textMuted: '#787b86', // Secondary muted text
       },
       fontFamily: {

@@ -7,10 +7,19 @@ import json
 import os
 import math
 
-GLOBAL_INDICES = {
-    "^DJI": "Dow Jones", "^GSPC": "S&P 500", "^IXIC": "NASDAQ", 
-    "^SOX": "PHLX Semiconductor", "^RUT": "Russell 2000", "^GDAXI": "DAX", 
-    "^FCHI": "CAC 40", "^FTSE": "FTSE 100", "^N225": "Nikkei 225", "^KS11": "KOSPI"
+REGION_INDICES = {
+    "US": {
+        "^DJI": "Dow Jones", "^GSPC": "S&P 500", "^IXIC": "NASDAQ", 
+        "^SOX": "PHLX Semiconductor", "^RUT": "Russell 2000"
+    },
+    "Europe": {
+        "^GDAXI": "DAX", "^FCHI": "CAC 40", "^FTSE": "FTSE 100"
+    },
+    "Asia": {
+        "^TWII": "TAIEX", "^TWOII": "OTC", "^N225": "Nikkei 225", 
+        "^KS11": "KOSPI", "^AXJO": "ASX 200", "^HSI": "Hang Seng", 
+        "XIN9.FGI": "China A50", "000300.SS": "CSI 300", "000001.SS": "SSE Composite"
+    }
 }
 
 SECTOR_ETFS = {
@@ -18,6 +27,14 @@ SECTOR_ETFS = {
     "XLY": "Consumer Discretionary", "XLI": "Industrials", "XLP": "Consumer Staples",
     "XLE": "Energy", "XLU": "Utilities", "XLRE": "Real Estate",
     "XLB": "Materials", "XLC": "Communication Services"
+}
+
+YF_SECTOR_MAPPING = {
+    "Healthcare": "Health Care",
+    "Financial Services": "Financials",
+    "Consumer Cyclical": "Consumer Discretionary",
+    "Consumer Defensive": "Consumer Staples",
+    "Basic Materials": "Materials"
 }
 
 def get_stock_universe():
@@ -54,29 +71,30 @@ def update_all_data():
     
     result_data = {
         "status": { "last_updated": now_str },
-        "indices": {"data": []},
+        "indices": {"data": { "US": [], "Europe": [], "Asia": [] }},
         "sectors": {"data": []},
         "top_stocks": {"data": {}}
     }
     
-    # 1. Update Global Indices
-    for symbol, name in GLOBAL_INDICES.items():
-        try:
-            hist = yf.Ticker(symbol).history(period="5d")
-            if len(hist) >= 2:
-                close = float(hist['Close'].iloc[-1])
-                prev = float(hist['Close'].iloc[-2])
-                change = close - prev
-                change_pct = (change / prev) * 100
-                vol = float(hist['Volume'].iloc[-1]) if 'Volume' in hist else 0
-                date_str = hist.index[-1].strftime("%Y-%m-%d")
-                
-                result_data["indices"]["data"].append({
-                    "symbol": symbol, "name": name, "date": date_str,
-                    "close_price": close, "change_pt": change, "change_pct": change_pct, "volume": vol
-                })
-        except Exception as e:
-            print(f"Error fetching index {symbol}: {e}")
+    # 1. Update Regional Indices
+    for region, indices in REGION_INDICES.items():
+        for symbol, name in indices.items():
+            try:
+                hist = yf.Ticker(symbol).history(period="5d")
+                if len(hist) >= 2:
+                    close = float(hist['Close'].iloc[-1])
+                    prev = float(hist['Close'].iloc[-2])
+                    change = close - prev
+                    change_pct = (change / prev) * 100
+                    vol = float(hist['Volume'].iloc[-1]) if 'Volume' in hist else 0
+                    date_str = hist.index[-1].strftime("%Y-%m-%d")
+                    
+                    result_data["indices"]["data"][region].append({
+                        "symbol": symbol, "name": name, "date": date_str,
+                        "close_price": close, "change_pt": change, "change_pct": change_pct, "volume": vol
+                    })
+            except Exception as e:
+                print(f"Error fetching index {symbol}: {e}")
 
     # 2. Update Sector ETFs
     for symbol, name in SECTOR_ETFS.items():
@@ -126,6 +144,7 @@ def update_all_data():
                     date_str = hist.index[-1].strftime("%Y-%m-%d")
                     
                     sec = info_dict.get(sym, {}).get('sector', "Unknown")
+                    sec = YF_SECTOR_MAPPING.get(sec, sec)
                     ind = info_dict.get(sym, {}).get('industry', "Unknown")
                     cap = info_dict.get(sym, {}).get('market_cap', 0)
                     
@@ -144,11 +163,9 @@ def update_all_data():
             sector_group.setdefault(s['sector'], []).append(s)
 
         for sec, lst in sector_group.items():
-            top_mc = sorted(lst, key=lambda x: x['market_cap'], reverse=True)[:3]
-            top_gain = sorted(lst, key=lambda x: x['change_pct'], reverse=True)[:3]
+            top_mc = sorted(lst, key=lambda x: x['market_cap'], reverse=True)[:10]
             result_data["top_stocks"]["data"][sec] = {
-                "top_market_cap": top_mc,
-                "top_gainers": top_gain
+                "top_market_cap": top_mc
             }
 
     # Clean data to replace NaN with None for valid JSON serialization
