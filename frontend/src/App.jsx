@@ -13,8 +13,8 @@ function App() {
   // Data sets
   const [sectors, setSectors] = useState([])
   const [topStocks, setTopStocks] = useState({})
-  
   const [screener, setScreener] = useState(null)
+  const [commodities, setCommodities] = useState(null)
   
   // Interaction States
   const [selectedSector, setSelectedSector] = useState(null)
@@ -26,6 +26,9 @@ function App() {
   // Screener States
   const [screenerTab, setScreenerTab] = useState('upward') // 'upward' | 'downward'
   const [activeFilter, setActiveFilter] = useState('gain_3') // default for upward
+
+  // Main Top Nav Tabs
+  const [mainTab, setMainTab] = useState('us_stocks') // 'us_stocks' | 'commodities'
 
   const handleLogin = (e) => {
     e.preventDefault()
@@ -54,6 +57,7 @@ function App() {
       setSectors(data.sectors?.data || [])
       setTopStocks(data.top_stocks?.data || {})
       setScreener(data.screener || null)
+      setCommodities(data.commodities || null)
       
       if (data.sectors?.data?.length > 0) {
         setSelectedSector(data.sectors.data[0].name)
@@ -125,7 +129,6 @@ function App() {
   // --- Screener Grouping Logic ---
   const getActiveScreenerList = () => {
     if (!screener) return []
-    // activeFilter defines which block and array we target
     const filterMap = {
       'gain_3': screener.block1?.gain_3, 'gain_5': screener.block1?.gain_5, 'gain_10': screener.block1?.gain_10,
       'h_30': screener.block2?.h_30, 'h_90': screener.block2?.h_90, 'h_180': screener.block2?.h_180, 'h_all': screener.block2?.h_all,
@@ -135,7 +138,6 @@ function App() {
     return filterMap[activeFilter] || []
   }
 
-  // Group an array of stocks into { "Sector": { "Industry": [stocks] } }
   const groupedScreenerData = () => {
     const list = getActiveScreenerList()
     const groups = {}
@@ -227,6 +229,20 @@ function App() {
             <h1 className="text-xl font-bold tracking-tight text-textMain flex items-center">
               <span className="text-primary mr-2">●</span> Global Markets
             </h1>
+            <div className="flex space-x-4 ml-8">
+              <button 
+                onClick={() => setMainTab('us_stocks')}
+                className={`px-4 py-2 text-sm font-bold transition-colors uppercase tracking-wider rounded ${mainTab === 'us_stocks' ? 'bg-[#E3EBFF] text-[#2962ff]' : 'text-textMuted hover:text-textMain'}`}
+              >
+                U.S. Stocks
+              </button>
+              <button 
+                onClick={() => setMainTab('commodities')}
+                className={`px-4 py-2 text-sm font-bold transition-colors uppercase tracking-wider rounded ${mainTab === 'commodities' ? 'bg-[#E3EBFF] text-[#2962ff]' : 'text-textMuted hover:text-textMain'}`}
+              >
+                Commodities
+              </button>
+            </div>
           </div>
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-1 text-xs text-textMuted bg-bgLight px-3 py-1.5 rounded-sm border border-borderLight font-mono">
@@ -241,227 +257,284 @@ function App() {
       {/* Main Content Area */}
       <main className="max-w-[1600px] mx-auto px-4 lg:px-8 py-8 w-full space-y-10">
         
-        <section>
-          <div className="flex justify-between items-end mb-4 border-b border-borderLight pb-2">
-            <h2 className="text-xl font-bold text-textMain">Major Indices</h2>
-          </div>
-          <div className="space-y-6">
-            {['US', 'Europe', 'Asia'].map(region => (
-              <div key={region}>
-                <h3 className="text-sm font-semibold text-textMuted uppercase tracking-wider mb-2">{region} Markets</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 border-l border-t border-borderLight bg-bgLight overflow-hidden">
-                  {(indices[region] || []).map(idx => (
-                    <MarketCard key={idx.symbol} item={idx} />
-                  ))}
-                  {(indices[region] || []).length === 0 && <div className="p-4 text-xs text-textMuted border-b border-r border-borderLight">No data</div>}
-                </div>
+        {mainTab === 'us_stocks' && (
+          <>
+            <section>
+              <div className="flex justify-between items-end mb-4 border-b border-borderLight pb-2">
+                <h2 className="text-xl font-bold text-textMain">Major Indices</h2>
               </div>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <div className="flex justify-between items-end mb-4 border-b border-borderLight pb-2">
-            <h2 className="text-xl font-bold text-textMain">Sectors Performance & Top Components</h2>
-          </div>
-          
-          <div className="flex flex-col lg:flex-row gap-6 items-start">
-            <div className="w-full lg:w-[400px] flex-shrink-0 bg-cardLight border border-borderLight shadow-sm">
-              <div className="px-4 py-3 border-b border-borderLight bg-[#F8F9FA]">
-                <h3 className="font-semibold text-textMain text-sm uppercase tracking-wider">US Sectors (ETFs)</h3>
-              </div>
-              <div className="grid grid-cols-12 bg-bgLight border-b border-borderLight">
-                <div className="col-span-6"><SortableHeader label="Sector" sortKey="name" currentSort={sortSectors} onSort={handleSortSectors} /></div>
-                <div className="col-span-3"><SortableHeader label="Price" sortKey="close_price" currentSort={sortSectors} onSort={handleSortSectors} align="right" /></div>
-                <div className="col-span-3"><SortableHeader label="Chg %" sortKey="change_pct" currentSort={sortSectors} onSort={handleSortSectors} align="right" /></div>
-              </div>
-              <div className="divide-y divide-borderLight max-h-[800px] overflow-y-auto">
-                {sortedSectors.map(sec => (
-                  <div 
-                    key={sec.symbol} 
-                    onClick={() => setSelectedSector(sec.name)}
-                    className={`grid grid-cols-12 gap-2 px-4 py-3 items-center cursor-pointer transition-colors text-sm
-                      ${selectedSector === sec.name ? 'bg-[#E3EBFF] border-l-4 border-l-[#2962ff]' : 'hover:bg-[#F8F9FA] border-l-4 border-l-transparent'}`}
-                  >
-                    <div className="col-span-6 flex flex-col justify-center overflow-hidden">
-                      <span className="font-bold text-textMain truncate">{sec.symbol}</span>
-                      <span className="text-xs text-textMuted truncate" title={sec.name}>{sec.name}</span>
-                    </div>
-                    <div className="col-span-3 text-right font-medium text-textMain tabular-nums">
-                      {formatPrice(sec.close_price)}
-                    </div>
-                    <div className="col-span-3 text-right tabular-nums">
-                      <ValueCell item={sec} isPct />
+              <div className="space-y-6">
+                {['US', 'Europe', 'Asia'].map(region => (
+                  <div key={region}>
+                    <h3 className="text-sm font-semibold text-textMuted uppercase tracking-wider mb-2">{region} Markets</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 border-l border-t border-borderLight bg-bgLight overflow-hidden">
+                      {(indices[region] || []).map(idx => (
+                        <MarketCard key={idx.symbol} item={idx} />
+                      ))}
+                      {(indices[region] || []).length === 0 && <div className="p-4 text-xs text-textMuted border-b border-r border-borderLight">No data</div>}
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
 
-            <div className="flex-1 w-full bg-cardLight border border-borderLight shadow-sm overflow-x-auto">
-              <div className="px-4 py-3 border-b border-borderLight bg-[#F8F9FA] flex justify-between items-center min-w-[700px]">
-                <h3 className="font-semibold text-textMain text-sm uppercase tracking-wider">
-                  Top 10 Stocks: <span className="text-primary">{selectedSector || 'Select a Sector'}</span>
-                </h3>
+            <section>
+              <div className="flex justify-between items-end mb-4 border-b border-borderLight pb-2">
+                <h2 className="text-xl font-bold text-textMain">Sectors Performance & Top Components</h2>
               </div>
               
-              <div className="grid grid-cols-12 min-w-[700px] bg-bgLight border-b border-borderLight">
-                <div className="col-span-3"><SortableHeader label="Symbol/Name" sortKey="symbol" currentSort={sortStocks} onSort={handleSortStocks} /></div>
-                <div className="col-span-2"><SortableHeader label="Close" sortKey="close_price" currentSort={sortStocks} onSort={handleSortStocks} align="right" /></div>
-                <div className="col-span-2"><SortableHeader label="Chg %" sortKey="change_pct" currentSort={sortStocks} onSort={handleSortStocks} align="right" /></div>
-                <div className="col-span-2"><SortableHeader label="Volume" sortKey="volume" currentSort={sortStocks} onSort={handleSortStocks} align="right" /></div>
-                <div className="col-span-3"><SortableHeader label="Mkt Cap" sortKey="market_cap" currentSort={sortStocks} onSort={handleSortStocks} align="right" /></div>
-              </div>
-              
-              <div className="divide-y divide-borderLight min-w-[700px]">
-                {sortedStocks.length > 0 ? sortedStocks.map(stock => (
-                  <div key={stock.symbol} className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-[#F8F9FA] transition-colors cursor-default text-sm">
-                    <div className="col-span-3 flex flex-col justify-center overflow-hidden">
-                      <span className="font-bold text-textMain truncate">{stock.symbol}</span>
-                      <span className="text-xs text-textMuted truncate" title={stock.name}>{stock.name}</span>
-                    </div>
-                    <div className="col-span-2 text-right font-medium text-textMain tabular-nums">
-                      {formatPrice(stock.close_price)}
-                    </div>
-                    <div className="col-span-2 text-right tabular-nums">
-                      <ValueCell item={stock} isPct />
-                    </div>
-                    <div className="col-span-2 text-right font-medium text-textMuted tabular-nums">
-                      {formatLargeNum(stock.volume)}
-                    </div>
-                    <div className="col-span-3 text-right font-medium text-textMuted tabular-nums pr-2">
-                       {formatLargeNum(stock.market_cap)}
-                    </div>
+              <div className="flex flex-col lg:flex-row gap-6 items-start">
+                <div className="w-full lg:w-[400px] flex-shrink-0 bg-cardLight border border-borderLight shadow-sm">
+                  <div className="px-4 py-3 border-b border-borderLight bg-[#F8F9FA]">
+                    <h3 className="font-semibold text-textMain text-sm uppercase tracking-wider">US Sectors (ETFs)</h3>
                   </div>
-                )) : (
-                  <div className="text-center py-24 text-textMuted">
-                    {selectedSector ? 'No data available for this sector.' : 'Select a sector from the left to view components.'}
+                  <div className="grid grid-cols-12 bg-bgLight border-b border-borderLight">
+                    <div className="col-span-6"><SortableHeader label="Sector" sortKey="name" currentSort={sortSectors} onSort={handleSortSectors} /></div>
+                    <div className="col-span-3"><SortableHeader label="Price" sortKey="close_price" currentSort={sortSectors} onSort={handleSortSectors} align="right" /></div>
+                    <div className="col-span-3"><SortableHeader label="Chg %" sortKey="change_pct" currentSort={sortSectors} onSort={handleSortSectors} align="right" /></div>
                   </div>
-                )}
-              </div>
-            </div>
-            
-          </div>
-        </section>
-
-        {/* --- NEW QUANT SCREENER SECTION --- */}
-        <section>
-          <div className="flex justify-between items-end mb-4 border-b border-borderLight pb-2 mt-8">
-            <h2 className="text-xl font-bold text-textMain">US Top 1200 Quant Screener</h2>
-          </div>
-          
-          <div className="bg-cardLight border border-borderLight shadow-sm rounded overflow-hidden">
-            
-            {/* Top Level Tabs */}
-            <div className="flex border-b border-borderLight">
-              <button 
-                className={`flex-1 py-3 font-semibold text-sm transition-colors uppercase tracking-wider
-                ${screenerTab === 'upward' ? 'bg-[#F8F9FA] text-up border-b-2 border-b-up' : 'text-textMuted hover:text-textMain'}`}
-                onClick={() => { setScreenerTab('upward'); setActiveFilter('gain_3') }}
-              >
-                Upward Trends (Gains & Highs)
-              </button>
-              <button 
-                className={`flex-1 py-3 font-semibold text-sm transition-colors uppercase tracking-wider
-                ${screenerTab === 'downward' ? 'bg-[#F8F9FA] text-down border-b-2 border-b-down' : 'text-textMuted hover:text-textMain'}`}
-                onClick={() => { setScreenerTab('downward'); setActiveFilter('loss_3') }}
-              >
-                Downward Trends (Losses & Lows)
-              </button>
-            </div>
-
-            {/* Sub-Filters */}
-            <div className="p-4 bg-[#F8F9FA] border-b border-borderLight flex flex-wrap gap-2">
-              {screenerTab === 'upward' ? (
-                <>
-                  <span className="text-xs font-bold text-textMuted mr-2 my-auto">GAIN (Block 1):</span>
-                  {['gain_3| > 3%', 'gain_5| > 5%', 'gain_10| > 10%'].map(f => {
-                    const [k, lbl] = f.split('|');
-                    return <button key={k} onClick={() => setActiveFilter(k)} className={`px-3 py-1.5 rounded text-xs font-semibold transition ${activeFilter === k ? 'bg-primary text-white' : 'bg-white border border-borderLight text-textMain hover:bg-gray-100'}`}>{lbl}</button>
-                  })}
-                  <span className="text-xs font-bold text-textMuted ml-6 mr-2 my-auto">HIGHS (Block 2):</span>
-                  {['h_30|30-Day High', 'h_90|90-Day High', 'h_180|180-Day High', 'h_all|All-Time High'].map(f => {
-                    const [k, lbl] = f.split('|');
-                    return <button key={k} onClick={() => setActiveFilter(k)} className={`px-3 py-1.5 rounded text-xs font-semibold transition ${activeFilter === k ? 'bg-primary text-white' : 'bg-white border border-borderLight text-textMain hover:bg-gray-100'}`}>{lbl}</button>
-                  })}
-                </>
-              ) : (
-                <>
-                  <span className="text-xs font-bold text-textMuted mr-2 my-auto">LOSS (Block 3):</span>
-                  {['loss_3| < -3%', 'loss_5| < -5%', 'loss_10| < -10%'].map(f => {
-                    const [k, lbl] = f.split('|');
-                    return <button key={k} onClick={() => setActiveFilter(k)} className={`px-3 py-1.5 rounded text-xs font-semibold transition ${activeFilter === k ? 'bg-primary text-white' : 'bg-white border border-borderLight text-textMain hover:bg-gray-100'}`}>{lbl}</button>
-                  })}
-                  <span className="text-xs font-bold text-textMuted ml-6 mr-2 my-auto">LOWS (Block 4):</span>
-                  {['l_30|30-Day Low', 'l_90|90-Day Low', 'l_180|180-Day Low', 'l_all|All-Time Low'].map(f => {
-                    const [k, lbl] = f.split('|');
-                    return <button key={k} onClick={() => setActiveFilter(k)} className={`px-3 py-1.5 rounded text-xs font-semibold transition ${activeFilter === k ? 'bg-primary text-white' : 'bg-white border border-borderLight text-textMain hover:bg-gray-100'}`}>{lbl}</button>
-                  })}
-                </>
-              )}
-            </div>
-
-            {/* Screener Output grouped by Sector -> Industry */}
-            <div className="p-4 bg-white min-h-[400px]">
-              {Object.keys(currentGroups).length === 0 ? (
-                <div className="text-center py-20 text-textMuted">
-                  No stocks match this criteria in the current session.
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {Object.entries(currentGroups).map(([sectorName, industriesObj]) => (
-                    <div key={sectorName} className="border border-borderLight rounded-lg overflow-hidden shadow-sm">
-                      <div className="bg-[#131722] px-4 py-2 text-white font-bold tracking-wide uppercase text-sm">
-                        {sectorName}
+                  <div className="divide-y divide-borderLight max-h-[800px] overflow-y-auto">
+                    {sortedSectors.map(sec => (
+                      <div 
+                        key={sec.symbol} 
+                        onClick={() => setSelectedSector(sec.name)}
+                        className={`grid grid-cols-12 gap-2 px-4 py-3 items-center cursor-pointer transition-colors text-sm
+                          ${selectedSector === sec.name ? 'bg-[#E3EBFF] border-l-4 border-l-[#2962ff]' : 'hover:bg-[#F8F9FA] border-l-4 border-l-transparent'}`}
+                      >
+                        <div className="col-span-6 flex flex-col justify-center overflow-hidden">
+                          <span className="font-bold text-textMain truncate">{sec.symbol}</span>
+                          <span className="text-xs text-textMuted truncate" title={sec.name}>{sec.name}</span>
+                        </div>
+                        <div className="col-span-3 text-right font-medium text-textMain tabular-nums">
+                          {formatPrice(sec.close_price)}
+                        </div>
+                        <div className="col-span-3 text-right tabular-nums">
+                          <ValueCell item={sec} isPct />
+                        </div>
                       </div>
-                      
-                      {Object.entries(industriesObj).map(([industryName, stocksArr]) => (
-                        <div key={industryName} className="border-t border-borderLight first:border-0">
-                          <div className="bg-[#F8F9FA] px-4 py-1.5 border-b border-borderLight">
-                            <span className="text-xs font-semibold text-textMuted uppercase tracking-wider">{industryName}</span>
-                            <span className="ml-2 text-xs font-bold text-textMain bg-white px-2 py-0.5 rounded border border-borderLight">{stocksArr.length}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex-1 w-full bg-cardLight border border-borderLight shadow-sm overflow-x-auto">
+                  <div className="px-4 py-3 border-b border-borderLight bg-[#F8F9FA] flex justify-between items-center min-w-[700px]">
+                    <h3 className="font-semibold text-textMain text-sm uppercase tracking-wider">
+                      Top 10 Stocks: <span className="text-primary">{selectedSector || 'Select a Sector'}</span>
+                    </h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-12 min-w-[700px] bg-bgLight border-b border-borderLight">
+                    <div className="col-span-3"><SortableHeader label="Symbol/Name" sortKey="symbol" currentSort={sortStocks} onSort={handleSortStocks} /></div>
+                    <div className="col-span-2"><SortableHeader label="Close" sortKey="close_price" currentSort={sortStocks} onSort={handleSortStocks} align="right" /></div>
+                    <div className="col-span-2"><SortableHeader label="Chg %" sortKey="change_pct" currentSort={sortStocks} onSort={handleSortStocks} align="right" /></div>
+                    <div className="col-span-2"><SortableHeader label="Volume" sortKey="volume" currentSort={sortStocks} onSort={handleSortStocks} align="right" /></div>
+                    <div className="col-span-3"><SortableHeader label="Mkt Cap" sortKey="market_cap" currentSort={sortStocks} onSort={handleSortStocks} align="right" /></div>
+                  </div>
+                  
+                  <div className="divide-y divide-borderLight min-w-[700px]">
+                    {sortedStocks.length > 0 ? sortedStocks.map(stock => (
+                      <div key={stock.symbol} className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-[#F8F9FA] transition-colors cursor-default text-sm">
+                        <div className="col-span-3 flex flex-col justify-center overflow-hidden">
+                          <span className="font-bold text-textMain truncate">{stock.symbol}</span>
+                          <span className="text-xs text-textMuted truncate" title={stock.name}>{stock.name}</span>
+                        </div>
+                        <div className="col-span-2 text-right font-medium text-textMain tabular-nums">
+                          {formatPrice(stock.close_price)}
+                        </div>
+                        <div className="col-span-2 text-right tabular-nums">
+                          <ValueCell item={stock} isPct />
+                        </div>
+                        <div className="col-span-2 text-right font-medium text-textMuted tabular-nums">
+                          {formatLargeNum(stock.volume)}
+                        </div>
+                        <div className="col-span-3 text-right font-medium text-textMuted tabular-nums pr-2">
+                           {formatLargeNum(stock.market_cap)}
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="text-center py-24 text-textMuted">
+                        {selectedSector ? 'Loading or no data available for this sector.' : 'Select a sector from the left to view components.'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <div className="flex justify-between items-end mb-4 border-b border-borderLight pb-2 mt-8">
+                <h2 className="text-xl font-bold text-textMain">US Top 1200 Quant Screener</h2>
+              </div>
+              
+              <div className="bg-cardLight border border-borderLight shadow-sm rounded overflow-hidden">
+                <div className="flex border-b border-borderLight">
+                  <button 
+                    className={`flex-1 py-3 font-semibold text-sm transition-colors uppercase tracking-wider
+                    ${screenerTab === 'upward' ? 'bg-[#F8F9FA] text-up border-b-2 border-b-up' : 'text-textMuted hover:text-textMain'}`}
+                    onClick={() => { setScreenerTab('upward'); setActiveFilter('gain_3') }}
+                  >
+                    Upward Trends (Gains & Highs)
+                  </button>
+                  <button 
+                    className={`flex-1 py-3 font-semibold text-sm transition-colors uppercase tracking-wider
+                    ${screenerTab === 'downward' ? 'bg-[#F8F9FA] text-down border-b-2 border-b-down' : 'text-textMuted hover:text-textMain'}`}
+                    onClick={() => { setScreenerTab('downward'); setActiveFilter('loss_3') }}
+                  >
+                    Downward Trends (Losses & Lows)
+                  </button>
+                </div>
+
+                <div className="p-4 bg-[#F8F9FA] border-b border-borderLight flex flex-wrap gap-2">
+                  {screenerTab === 'upward' ? (
+                    <>
+                      <span className="text-xs font-bold text-textMuted mr-2 my-auto">GAIN (Block 1):</span>
+                      {['gain_3| > 3%', 'gain_5| > 5%', 'gain_10| > 10%'].map(f => {
+                        const [k, lbl] = f.split('|');
+                        return <button key={k} onClick={() => setActiveFilter(k)} className={`px-3 py-1.5 rounded text-xs font-semibold transition ${activeFilter === k ? 'bg-primary text-white' : 'bg-white border border-borderLight text-textMain hover:bg-gray-100'}`}>{lbl}</button>
+                      })}
+                      <span className="text-xs font-bold text-textMuted ml-6 mr-2 my-auto">HIGHS (Block 2):</span>
+                      {['h_30|30-Day High', 'h_90|90-Day High', 'h_180|180-Day High', 'h_all|All-Time High'].map(f => {
+                        const [k, lbl] = f.split('|');
+                        return <button key={k} onClick={() => setActiveFilter(k)} className={`px-3 py-1.5 rounded text-xs font-semibold transition ${activeFilter === k ? 'bg-primary text-white' : 'bg-white border border-borderLight text-textMain hover:bg-gray-100'}`}>{lbl}</button>
+                      })}
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xs font-bold text-textMuted mr-2 my-auto">LOSS (Block 3):</span>
+                      {['loss_3| < -3%', 'loss_5| < -5%', 'loss_10| < -10%'].map(f => {
+                        const [k, lbl] = f.split('|');
+                        return <button key={k} onClick={() => setActiveFilter(k)} className={`px-3 py-1.5 rounded text-xs font-semibold transition ${activeFilter === k ? 'bg-primary text-white' : 'bg-white border border-borderLight text-textMain hover:bg-gray-100'}`}>{lbl}</button>
+                      })}
+                      <span className="text-xs font-bold text-textMuted ml-6 mr-2 my-auto">LOWS (Block 4):</span>
+                      {['l_30|30-Day Low', 'l_90|90-Day Low', 'l_180|180-Day Low', 'l_all|All-Time Low'].map(f => {
+                        const [k, lbl] = f.split('|');
+                        return <button key={k} onClick={() => setActiveFilter(k)} className={`px-3 py-1.5 rounded text-xs font-semibold transition ${activeFilter === k ? 'bg-primary text-white' : 'bg-white border border-borderLight text-textMain hover:bg-gray-100'}`}>{lbl}</button>
+                      })}
+                    </>
+                  )}
+                </div>
+
+                <div className="p-4 bg-white min-h-[400px]">
+                  {Object.keys(currentGroups).length === 0 ? (
+                    <div className="text-center py-20 text-textMuted">
+                      No stocks match this criteria in the current session.
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {Object.entries(currentGroups).map(([sectorName, industriesObj]) => (
+                        <div key={sectorName} className="border border-borderLight rounded-lg overflow-hidden shadow-sm">
+                          <div className="bg-[#131722] px-4 py-2 text-white font-bold tracking-wide uppercase text-sm">
+                            {sectorName}
                           </div>
                           
-                          <div className="overflow-x-auto">
+                          {Object.entries(industriesObj).map(([industryName, stocksArr]) => (
+                            <div key={industryName} className="border-t border-borderLight first:border-0">
+                              <div className="bg-[#F8F9FA] px-4 py-1.5 border-b border-borderLight">
+                                <span className="text-xs font-semibold text-textMuted uppercase tracking-wider">{industryName}</span>
+                                <span className="ml-2 text-xs font-bold text-textMain bg-white px-2 py-0.5 rounded border border-borderLight">{stocksArr.length}</span>
+                              </div>
+                              
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                  <thead className="text-xs uppercase text-textMuted bg-white border-b border-borderLight">
+                                    <tr>
+                                      <th className="px-4 py-2 font-semibold">Date</th>
+                                      <th className="px-4 py-2 font-semibold">Symbol</th>
+                                      <th className="px-4 py-2 font-semibold">Name</th>
+                                      <th className="px-4 py-2 font-semibold text-right">Close</th>
+                                      <th className="px-4 py-2 font-semibold text-right">Change %</th>
+                                      <th className="px-4 py-2 font-semibold text-right">Volume</th>
+                                      <th className="px-4 py-2 font-semibold text-right">Mkt Cap</th>
+                                      <th className="px-4 py-2 font-semibold text-right">P/E (TTM)</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-borderLight">
+                                    {stocksArr.sort((a,b) => b.market_cap - a.market_cap).map(stock => (
+                                      <tr key={stock.symbol} className="hover:bg-[#F8F9FA] transition-colors">
+                                        <td className="px-4 py-2 text-textMuted whitespace-nowrap">{stock.date}</td>
+                                        <td className="px-4 py-2 font-bold text-textMain">{stock.symbol}</td>
+                                        <td className="px-4 py-2 text-textMuted truncate max-w-[200px]" title={stock.name}>{stock.name}</td>
+                                        <td className="px-4 py-2 text-right font-medium text-textMain tabular-nums">{formatPrice(stock.close_price)}</td>
+                                        <td className="px-4 py-2 text-right tabular-nums"><ValueCell item={stock} isPct /></td>
+                                        <td className="px-4 py-2 text-right text-textMuted tabular-nums">{formatLargeNum(stock.volume)}</td>
+                                        <td className="px-4 py-2 text-right text-textMuted tabular-nums">{formatLargeNum(stock.market_cap)}</td>
+                                        <td className="px-4 py-2 text-right text-textMuted tabular-nums">{stock.pe_ratio ? stock.pe_ratio.toFixed(2) : '-'}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+          </>
+        )}
+
+        {/* --- COMMODITIES TAB CONTENT --- */}
+        {mainTab === 'commodities' && (
+          <div className="space-y-12">
+            
+            {commodities ? (
+              Object.entries(commodities).map(([marketBlock, subCategories]) => (
+                <section key={marketBlock}>
+                  <div className="flex justify-between items-end mb-6 border-b border-borderLight pb-2 mt-4">
+                    <h2 className="text-2xl font-bold text-[#131722]">{marketBlock}</h2>
+                    <span className="text-xs text-textMuted">* Some futures quotes may be delayed.</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    {Object.entries(subCategories).map(([subCatName, items]) => {
+                      if (items.length === 0) return null; // hide empty categories
+                      return (
+                        <div key={subCatName} className="bg-cardLight border border-borderLight rounded-lg shadow-sm overflow-hidden flex flex-col">
+                          <div className="bg-[#131722] px-4 py-2 text-white font-bold tracking-wide uppercase text-sm flex justify-between items-center">
+                            <span>{subCatName}</span>
+                            <span className="text-xs font-normal text-gray-400 bg-gray-800 px-2 py-0.5 rounded">{items.length} Contracts</span>
+                          </div>
+                          <div className="overflow-x-auto flex-1">
                             <table className="w-full text-sm text-left">
-                              <thead className="text-xs uppercase text-textMuted bg-white border-b border-borderLight">
+                              <thead className="text-xs uppercase text-textMuted bg-[#F8F9FA] border-b border-borderLight">
                                 <tr>
                                   <th className="px-4 py-2 font-semibold">Date</th>
-                                  <th className="px-4 py-2 font-semibold">Symbol</th>
                                   <th className="px-4 py-2 font-semibold">Name</th>
+                                  <th className="px-4 py-2 font-semibold">Symbol</th>
                                   <th className="px-4 py-2 font-semibold text-right">Close</th>
                                   <th className="px-4 py-2 font-semibold text-right">Change %</th>
-                                  <th className="px-4 py-2 font-semibold text-right">Volume</th>
-                                  <th className="px-4 py-2 font-semibold text-right">Mkt Cap</th>
-                                  <th className="px-4 py-2 font-semibold text-right">P/E (TTM)</th>
+                                  <th className="px-4 py-2 font-semibold text-right">Exchange</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-borderLight">
-                                {stocksArr.sort((a,b) => b.market_cap - a.market_cap).map(stock => (
-                                  <tr key={stock.symbol} className="hover:bg-[#F8F9FA] transition-colors">
-                                    <td className="px-4 py-2 text-textMuted whitespace-nowrap">{stock.date}</td>
-                                    <td className="px-4 py-2 font-bold text-textMain">{stock.symbol}</td>
-                                    <td className="px-4 py-2 text-textMuted truncate max-w-[200px]" title={stock.name}>{stock.name}</td>
-                                    <td className="px-4 py-2 text-right font-medium text-textMain tabular-nums">{formatPrice(stock.close_price)}</td>
-                                    <td className="px-4 py-2 text-right tabular-nums"><ValueCell item={stock} isPct /></td>
-                                    <td className="px-4 py-2 text-right text-textMuted tabular-nums">{formatLargeNum(stock.volume)}</td>
-                                    <td className="px-4 py-2 text-right text-textMuted tabular-nums">{formatLargeNum(stock.market_cap)}</td>
-                                    <td className="px-4 py-2 text-right text-textMuted tabular-nums">{stock.pe_ratio ? stock.pe_ratio.toFixed(2) : '-'}</td>
+                                {items.map(item => (
+                                  <tr key={item.symbol} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-4 py-3 text-textMuted whitespace-nowrap">{item.date}</td>
+                                    <td className="px-4 py-3 font-semibold text-textMain truncate leading-tight max-w-[150px]" title={item.name}>{item.name}</td>
+                                    <td className="px-4 py-3 font-mono text-xs text-textMuted">{item.symbol}</td>
+                                    <td className="px-4 py-3 text-right font-bold text-textMain tabular-nums">{formatPrice(item.close_price)}</td>
+                                    <td className="px-4 py-3 text-right tabular-nums"><ValueCell item={item} isPct /></td>
+                                    <td className="px-4 py-3 text-right text-xs text-textMuted">{item.exchange}</td>
                                   </tr>
                                 ))}
                               </tbody>
                             </table>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
+                      )
+                    })}
+                  </div>
+                </section>
+              ))
+            ) : (
+              <div className="text-center py-24 text-textMuted">Loading Commodities...</div>
+            )}
+            
           </div>
-        </section>
+        )}
 
       </main>
     </div>
