@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
 import { RefreshCw, ExternalLink } from 'lucide-react'
-
-// GitHub Repository URL (User holds this repository)
-const GITHUB_REPO_URL = "https://github.com/K5618/stock-dashboard/actions"
+import { supabase } from './lib/supabase'
 
 function App() {
   const [status, setStatus] = useState("Loading...")
@@ -12,11 +10,16 @@ function App() {
   
   const fetchData = async () => {
     try {
-      let res = await fetch('data.json?v=' + new Date().getTime());
-      if (!res.ok) {
-        res = await fetch('https://k5618.github.io/stock-dashboard/data.json?v=' + new Date().getTime());
-      }
-      const data = await res.json()
+      const { data: snapshots, error } = await supabase
+        .from('market_snapshots')
+        .select('data')
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      if (error) throw error
+      if (!snapshots || snapshots.length === 0) throw new Error("No data found")
+      
+      const data = snapshots[0].data
       
       setStatus(data.status.last_updated)
       setIndices(data.indices.data || [])
@@ -40,142 +43,153 @@ function App() {
     const isUp = val >= 0
     const color = isUp ? "text-up" : "text-down"
     return (
-      <div className={`flex items-center space-x-1 ${color} font-medium`}>
-        <span>{formatChange(val)}{isPct ? '%' : ''}</span>
-      </div>
+      <span className={`${color} font-medium tracking-tight`}>
+        {formatChange(val)}{isPct ? '%' : ''}
+      </span>
     )
   }
 
-  return (
-    <div className="min-h-screen pb-12">
-      {/* Header Bar */}
-      <div className="bg-cardLight border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-2xl font-bold tracking-tight text-textDark">Market Overview</h1>
-            <span className="text-sm font-medium text-textMuted bg-gray-100 px-3 py-1 rounded-full">
-              Updated: {status}
-            </span>
-          </div>
+  // TradingView Style Summary Card Component
+  const MarketCard = ({ item }) => (
+    <div className="bg-cardDark p-4 flex flex-col justify-between hover:bg-[#2a2e39] transition-colors border-r border-b border-borderDark cursor-default">
+      <div className="flex justify-between items-start mb-3">
+        <div className="overflow-hidden">
+          <p className="text-xs text-textMuted font-mono uppercase tracking-wider truncate mb-1">{item.symbol}</p>
+          <h3 className="text-sm font-semibold text-textMain truncate leading-tight" title={item.name}>{item.name}</h3>
         </div>
       </div>
+      <div>
+        <p className="text-lg font-bold text-textMain tracking-tight mb-1">{formatPrice(item.close_price)}</p>
+        <div className="flex space-x-3 text-sm">
+          <ValueCell item={item} />
+          <ValueCell item={item} isPct />
+        </div>
+      </div>
+    </div>
+  );
 
-      <div className="max-w-7xl mx-auto px-6 space-y-12 mt-8">
+  return (
+    <div className="min-h-screen bg-bgDark selection:bg-borderDark">
+      {/* Sleek Top Navigation Bar */}
+      <nav className="bg-cardDark border-b border-borderDark sticky top-0 z-10">
+        <div className="max-w-screen-2xl mx-auto px-4 lg:px-8 py-3 flex flex-col sm:flex-row justify-between items-center w-full">
+          <div className="flex items-center space-x-6">
+            <h1 className="text-xl font-bold tracking-tight text-textMain flex items-center">
+              <span className="text-primary mr-2">●</span> US Markets
+            </h1>
+            <div className="hidden sm:flex space-x-4 text-sm font-medium text-textMuted">
+              <span className="hover:text-textMain cursor-pointer transition-colors">Indices</span>
+              <span className="hover:text-textMain cursor-pointer transition-colors">Sectors</span>
+              <span className="hover:text-textMain cursor-pointer transition-colors">Leaders</span>
+            </div>
+          </div>
+          <div className="mt-2 sm:mt-0 flex items-center space-x-3">
+            <div className="flex items-center space-x-1 text-xs text-textMuted bg-bgDark px-3 py-1.5 rounded-sm border border-borderDark">
+              <span className="inline-block w-2 h-2 rounded-full bg-up animate-pulse mr-1"></span>
+              Live <span className="mx-2">|</span> {status}
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Content Area - Strictly Centered and Restrained */}
+      <main className="max-w-screen-2xl mx-auto px-4 lg:px-8 py-8 w-full space-y-10">
         
         {/* Section: Global Indices */}
         <section>
-          <h2 className="text-xl font-bold text-textDark mb-4">Indices</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div className="flex justify-between items-end mb-4 border-b border-borderDark pb-2">
+            <h2 className="text-lg font-semibold text-textMain">Major Indices</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 border-l border-t border-borderDark rounded-sm overflow-hidden bg-bgDark">
             {indices.map(idx => (
-              <div key={idx.symbol} className="bg-cardLight rounded-lg p-4 border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-default">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="overflow-hidden w-full">
-                    <h3 className="font-bold text-textDark text-sm sm:text-base truncate" title={idx.name}>{idx.name}</h3>
-                    <p className="text-xs text-textMuted font-mono truncate">{idx.symbol}</p>
-                  </div>
-                </div>
-                <div className="mt-3">
-                  <p className="text-xl font-semibold text-textDark tracking-tight">{formatPrice(idx.close_price)}</p>
-                  <div className="flex space-x-3 mt-1 text-sm bg-gray-50/50 p-1.5 rounded">
-                    <ValueCell item={idx} />
-                    <ValueCell item={idx} isPct />
-                  </div>
-                </div>
-              </div>
+              <MarketCard key={idx.symbol} item={idx} />
             ))}
           </div>
         </section>
 
         {/* Section: Sectors */}
         <section>
-          <h2 className="text-xl font-bold text-textDark mb-4">Sectors (US)</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="flex justify-between items-end mb-4 border-b border-borderDark pb-2">
+            <h2 className="text-lg font-semibold text-textMain">Sectors Performance</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 border-l border-t border-borderDark rounded-sm overflow-hidden bg-bgDark">
             {sectors.map(sec => (
-              <div key={sec.symbol} className="bg-cardLight rounded-lg p-4 border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all">
-                <h3 className="font-bold text-gray-800 text-sm truncate" title={sec.name}>{sec.name}</h3>
-                <p className="text-xs text-textMuted font-mono mb-2">{sec.symbol}</p>
-                <p className="text-lg font-medium text-textDark mb-1">{formatPrice(sec.close_price)}</p>
-                <div className="flex justify-between text-sm">
-                  <ValueCell item={sec} isPct />
-                </div>
-              </div>
+              <MarketCard key={sec.symbol} item={sec} />
             ))}
           </div>
         </section>
 
-        {/* Section: Top Stocks */}
+        {/* Section: Top Stocks Data Tables */}
         <section>
-          <h2 className="text-xl font-bold text-textDark mb-4">Sector Leaders</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="flex justify-between items-end mb-4 border-b border-borderDark pb-2">
+            <h2 className="text-lg font-semibold text-textMain">Sector Leaders & Gainers</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
             {Object.entries(topStocks).map(([sector, data]) => (
-              <div key={sector} className="bg-cardLight rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-                <div className="bg-gray-50 px-5 py-3 border-b border-gray-200 flex justify-between items-center">
-                  <h3 className="font-bold text-textDark">{sector}</h3>
+              <div key={sector} className="bg-cardDark border border-borderDark rounded-sm overflow-hidden flex flex-col shadow-lg">
+                <div className="px-4 py-3 border-b border-borderDark flex items-center justify-between bg-[#1a1e27]">
+                  <h3 className="font-semibold text-textMain text-sm uppercase tracking-wider">{sector}</h3>
                 </div>
-                <div className="p-0">
-                  {/* Market Cap Leaders */}
-                  <div className="px-5 py-3 bg-white">
-                    <h4 className="text-xs font-semibold text-textMuted uppercase tracking-wider mb-2">Largest by Market Cap</h4>
-                    <ul className="divide-y divide-gray-100">
-                      {data.top_market_cap.map(stock => (
-                        <li key={stock.symbol} className="py-2.5 flex justify-between items-center hover:bg-gray-50 -mx-2 px-2 rounded transition-colors group">
-                          <div className="flex items-center space-x-3 overflow-hidden mr-2">
-                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 text-primary font-bold text-xs shrink-0 group-hover:bg-blue-50 group-hover:border-blue-200 transition-colors">
-                              {stock.symbol.slice(0, 3)}
-                            </div>
-                            <div className="truncate pr-2 max-w-[150px] sm:max-w-[200px]">
-                              <p className="font-bold text-sm text-textDark truncate leading-tight">{stock.symbol}</p>
-                              <p className="text-xs text-textMuted truncate leading-tight" title={stock.name}>{stock.name}</p>
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-sm font-medium text-textDark">{formatPrice(stock.close_price)}</p>
-                            <div className="text-xs flex justify-end"><ValueCell item={stock} isPct /></div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
+                
+                <div className="flex-1">
+                  {/* Table Header */}
+                  <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs font-medium text-textMuted border-b border-borderDark bg-[#1e222d]">
+                    <div className="col-span-6">Symbol</div>
+                    <div className="col-span-3 text-right">Last</div>
+                    <div className="col-span-3 text-right">Chg%</div>
                   </div>
                   
-                  {/* Top Gainers Divider */}
-                  <div className="h-px bg-gray-100 mx-5 w-auto"></div>
-
-                  {/* Top Gainers */}
-                  <div className="px-5 py-3 bg-white">
-                    <h4 className="text-xs font-semibold text-textMuted uppercase tracking-wider mb-2">Top Gainers</h4>
-                    <ul className="divide-y divide-gray-100">
-                      {data.top_gainers.map(stock => (
-                        <li key={stock.symbol} className="py-2.5 flex justify-between items-center hover:bg-gray-50 -mx-2 px-2 rounded transition-colors group">
-                          <div className="flex items-center space-x-3 overflow-hidden mr-2">
-                            <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center border border-green-100 text-up font-bold text-xs shrink-0 group-hover:bg-green-100 transition-colors">
-                              {stock.symbol.slice(0, 3)}
-                            </div>
-                            <div className="truncate pr-2 max-w-[150px] sm:max-w-[200px]">
-                              <p className="font-bold text-sm text-textDark truncate leading-tight">{stock.symbol}</p>
-                              <p className="text-xs text-textMuted truncate leading-tight" title={stock.name}>{stock.name}</p>
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-sm font-medium text-textDark">{formatPrice(stock.close_price)}</p>
-                            <div className="text-xs flex justify-end"><ValueCell item={stock} isPct /></div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
+                  {/* Market Cap Leaders */}
+                  <div className="divide-y divide-borderDark">
+                    <div className="px-4 py-1 bg-[#1a1e27] text-xs font-semibold text-primary">Largest by Market Cap</div>
+                    {data.top_market_cap.map(stock => (
+                      <div key={stock.symbol} className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center hover:bg-[#2a2e39] transition-colors cursor-default text-sm">
+                        <div className="col-span-6 flex flex-col justify-center overflow-hidden">
+                          <span className="font-bold text-textMain truncate">{stock.symbol}</span>
+                          <span className="text-xs text-textMuted truncate">{stock.name}</span>
+                        </div>
+                        <div className="col-span-3 text-right font-medium text-textMain tabular-nums">
+                          {formatPrice(stock.close_price)}
+                        </div>
+                        <div className="col-span-3 text-right tabular-nums">
+                          <ValueCell item={stock} isPct />
+                        </div>
+                      </div>
+                    ))}
                   </div>
 
+                  {/* Top Gainers Divider */}
+                  <div className="divide-y divide-borderDark border-t border-borderDark">
+                    <div className="px-4 py-1 bg-[#1a1e27] text-xs font-semibold text-up">Top Gainers</div>
+                    {data.top_gainers.map(stock => (
+                      <div key={stock.symbol} className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center hover:bg-[#2a2e39] transition-colors cursor-default text-sm">
+                        <div className="col-span-6 flex flex-col justify-center overflow-hidden">
+                          <span className="font-bold text-textMain truncate">{stock.symbol}</span>
+                          <span className="text-xs text-textMuted truncate">{stock.name}</span>
+                        </div>
+                        <div className="col-span-3 text-right font-medium text-textMain tabular-nums">
+                          {formatPrice(stock.close_price)}
+                        </div>
+                        <div className="col-span-3 text-right tabular-nums">
+                          <ValueCell item={stock} isPct />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
+
           {Object.keys(topStocks).length === 0 && (
-            <div className="text-center py-20 bg-cardLight border border-gray-200 rounded-lg">
-              <p className="text-textMuted">Data not yet synchronized. Please trigger an update.</p>
+            <div className="text-center py-24 bg-cardDark border border-borderDark rounded-sm text-textMuted">
+              Market data is currently unavailable.
             </div>
           )}
         </section>
 
-      </div>
+      </main>
     </div>
   )
 }

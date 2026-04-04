@@ -23,11 +23,13 @@ jobs:
 
       - name: Install Python Dependencies
         run: |
-          pip install yfinance pandas requests
+          pip install yfinance pandas requests supabase
 
-      - name: Generate Stock Data (JSON)
+      - name: Fetch and Upload Stock Data
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          # 這裡會執行 fetcher.py 並且產出 data.json 到 frontend/public/
           python backend/fetcher.py
 
       - name: Setup Node.js

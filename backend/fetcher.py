@@ -5,6 +5,7 @@ import requests
 from concurrent.futures import ThreadPoolExecutor
 import json
 import os
+import math
 
 GLOBAL_INDICES = {
     "^DJI": "Dow Jones", "^GSPC": "S&P 500", "^IXIC": "NASDAQ", 
@@ -150,16 +151,38 @@ def update_all_data():
                 "top_gainers": top_gain
             }
 
-    # Write to target path
-    out_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'public'))
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-        
-    out_file = os.path.join(out_dir, 'data.json')
-    with open(out_file, 'w', encoding='utf-8') as f:
-        json.dump(result_data, f, ensure_ascii=False, indent=2)
-
-    print(f"Data successfully generated at {out_file}")
+    # Clean data to replace NaN with None for valid JSON serialization
+    def clean_nan(obj):
+        if isinstance(obj, dict):
+            return {k: clean_nan(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [clean_nan(v) for v in obj]
+        elif isinstance(obj, float) and math.isnan(obj):
+            return None
+        return obj
+    
+    clean_data = clean_nan(result_data)
+    
+    # Upload to Supabase
+    try:
+        from supabase import create_client, Client
+        url = os.environ.get("SUPABASE_URL")
+        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+        if url and key:
+            supabase: Client = create_client(url, key)
+            res = supabase.table("market_snapshots").insert({"data": clean_data}).execute()
+            print("Successfully uploaded snapshot to Supabase.")
+        else:
+            print("Supabase credentials not found in environment. Saving locally as fallback.")
+            out_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend', 'public'))
+            if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
+            out_file = os.path.join(out_dir, 'data.json')
+            with open(out_file, 'w', encoding='utf-8') as f:
+                json.dump(clean_data, f, ensure_ascii=False, indent=2)
+            print(f"Data successfully generated at {out_file}")
+    except Exception as e:
+        print(f"Error uploading to Supabase: {e}")
 
 if __name__ == '__main__':
     update_all_data()

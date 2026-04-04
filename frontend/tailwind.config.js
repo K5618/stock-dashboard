@@ -7,13 +7,24 @@ export default {
   theme: {
     extend: {
       colors: {
-        up: '#089981',      // TradingView Green
-        down: '#F23645',    // TradingView Red
-        primary: '#2962FF', // TradingView Blue
-        bgLight: '#F8F9FA',      
-        cardLight: '#FFFFFF',
-        textDark: '#131722',
-        textMuted: '#787B86'
+        up: '#089981',        // TV Green
+        down: '#f23645',      // TV Red
+        primary: '#2962ff',   // TV Blue
+        bgDark: '#131722',    // Primary dark background
+        cardDark: '#1e222d',  // Component background
+        borderDark: '#2a2e39',// Lines and dividers
+        textMain: '#d1d4dc',  // Primary light text
+        textMuted: '#787b86', // Secondary muted text
+      },
+      fontFamily: {
+        sans: [
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'Trebuchet MS',
+          'Roboto',
+          'Ubuntu',
+          'sans-serif'
+        ]
       }
     },
   },

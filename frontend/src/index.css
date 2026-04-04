@@ -4,7 +4,24 @@
 
 @layer base {
   body {
-    @apply bg-bgLight text-textDark antialiased;
-    font-family: -apple-system, BlinkMacSystemFont, "Trebuchet MS", Roboto, Ubuntu, sans-serif;
+    @apply bg-bgDark text-textMain antialiased;
+    margin: 0;
+    min-height: 100vh;
   }
+}
+
+/* Custom scrollbar for webkit to match dark theme sleekness */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #131722; 
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2e39; 
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #787b86; 
 }

@@ -1,0 +1,6 @@
+backend/venv/
+backend/__pycache__/
+frontend/test_keys.py
+frontend/.env
+*.db
+*.db-journal
