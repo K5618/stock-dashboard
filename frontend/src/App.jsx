@@ -15,9 +15,11 @@ function App() {
   const [topStocks, setTopStocks] = useState({})
   const [screener, setScreener] = useState(null)
   const [commodities, setCommodities] = useState(null)
+  const [twData, setTwData] = useState(null)
   
   // Interaction States
   const [selectedSector, setSelectedSector] = useState(null)
+  const [selectedTwSector, setSelectedTwSector] = useState(null)
   
   // Sorting States
   const [sortSectors, setSortSectors] = useState({ key: 'change_pct', direction: 'desc' })
@@ -26,9 +28,17 @@ function App() {
   // Screener States
   const [screenerTab, setScreenerTab] = useState('upward') // 'upward' | 'downward'
   const [activeFilter, setActiveFilter] = useState('gain_3') // default for upward
+  
+  // TW Screener States
+  const [twScreenerBucket, setTwScreenerBucket] = useState('TWSE') // 'TWSE' | 'TPEX' | 'Emerging'
+  const [twScreenerTab, setTwScreenerTab] = useState('upward')
+  const [activeTwFilter, setActiveTwFilter] = useState('gain_3')
 
   // Main Top Nav Tabs
-  const [mainTab, setMainTab] = useState('us_stocks') // 'us_stocks' | 'commodities'
+  const [mainTab, setMainTab] = useState('us_stocks') // 'us_stocks' | 'commodities' | 'tw_stocks'
+  
+  // Specific TW Main Sub-tabs
+  const [twMarketTab, setTwMarketTab] = useState('TWSE')
 
   const handleLogin = (e) => {
     e.preventDefault()
@@ -62,6 +72,32 @@ function App() {
       if (data.sectors?.data?.length > 0) {
         setSelectedSector(data.sectors.data[0].name)
       }
+
+      // Fetch TW Data
+      try {
+        const { data: twSnaps, error: twError } = await supabase
+          .from('tw_market_snapshots')
+          .select('data')
+          .order('created_at', { ascending: false })
+          .limit(1)
+        if (!twError && twSnaps && twSnaps.length > 0) {
+          setTwData(twSnaps[0].data)
+          if (twSnaps[0].data.sectors_data?.TWSE?.length > 0 && !selectedTwSector) setSelectedTwSector(twSnaps[0].data.sectors_data.TWSE[0].name)
+        } else {
+          throw new Error("Fallback TW")
+        }
+      } catch (e) {
+        // Fallback to local JSON if not in Supabase
+        const baseUrl = import.meta.env.BASE_URL || '/';
+        const fetchUrl = baseUrl.endsWith('/') ? baseUrl + 'tw_data.json' : baseUrl + '/tw_data.json';
+        const req = await fetch(fetchUrl)
+        if (req.ok) {
+          const tdata = await req.json()
+          setTwData(tdata)
+          if (tdata.sectors_data?.TWSE?.length > 0 && !selectedTwSector) setSelectedTwSector(tdata.sectors_data.TWSE[0].name)
+        }
+      }
+
     } catch(e) {
       console.error(e)
       setStatus("Error loading data.")
@@ -84,10 +120,13 @@ function App() {
     return num.toLocaleString()
   }
   
-  const ValueCell = ({ item, isPct = false }) => {
+  const ValueCell = ({ item, isPct = false, isTaiwan = false }) => {
     const val = isPct ? item.change_pct : item.change_pt
     const isUp = val >= 0
-    const color = isUp ? "text-up" : "text-down"
+    let color = isUp ? "text-up" : "text-down"
+    if (isTaiwan) {
+      color = isUp ? "text-tw-up" : "text-tw-down"
+    }
     return (
       <span className={`${color} font-medium`}>
         {formatChange(val)}{isPct ? '%' : ''}
@@ -153,6 +192,49 @@ function App() {
   
   const currentGroups = groupedScreenerData()
 
+  // --- TW Data Grouping Logic ---
+  const activeTwSectors = (twData?.sectors_data?.[twMarketTab]) || []
+  const sortedTwSectors = [...activeTwSectors].sort((a, b) => {
+    if (a[sortSectors.key] < b[sortSectors.key]) return sortSectors.direction === 'asc' ? -1 : 1
+    if (a[sortSectors.key] > b[sortSectors.key]) return sortSectors.direction === 'asc' ? 1 : -1
+    return 0
+  })
+
+  const selectedTwSectorObj = activeTwSectors.find(s => s.name === selectedTwSector)
+  const activeTwStocksList = selectedTwSectorObj ? selectedTwSectorObj.top_15 : []
+  const sortedTwStocks = [...activeTwStocksList].sort((a, b) => {
+    if (a[sortStocks.key] < b[sortStocks.key]) return sortStocks.direction === 'asc' ? -1 : 1
+    if (a[sortStocks.key] > b[sortStocks.key]) return sortStocks.direction === 'asc' ? 1 : -1
+    return 0
+  })
+
+  const getActiveTwScreenerList = () => {
+    if (!twData?.screener) return []
+    const bucket = twData.screener[twScreenerBucket]
+    if (!bucket) return []
+    const filterMap = {
+      'gain_3': bucket.block1?.gain_3, 'gain_5': bucket.block1?.gain_5, 'gain_10': bucket.block1?.gain_10,
+      'h_30': bucket.block2?.h_30, 'h_90': bucket.block2?.h_90, 'h_180': bucket.block2?.h_180, 'h_all': bucket.block2?.h_all,
+      'loss_3': bucket.block3?.loss_3, 'loss_5': bucket.block3?.loss_5, 'loss_10': bucket.block3?.loss_10,
+      'l_30': bucket.block4?.l_30, 'l_90': bucket.block4?.l_90, 'l_180': bucket.block4?.l_180, 'l_all': bucket.block4?.l_all
+    }
+    return filterMap[activeTwFilter] || []
+  }
+
+  const groupedTwScreenerData = () => {
+    const list = getActiveTwScreenerList()
+    const groups = {}
+    list.forEach(item => {
+      const sec = item.sector || "未知產業"
+      const ind = item.industry || "未知次產業"
+      if (!groups[sec]) groups[sec] = {}
+      if (!groups[sec][ind]) groups[sec][ind] = []
+      groups[sec][ind].push(item)
+    })
+    return groups
+  }
+  const currentTwGroups = groupedTwScreenerData()
+
   // Render Login overlay if not authenticated
   if (!isAuth) {
     return (
@@ -187,7 +269,7 @@ function App() {
     )
   }
 
-  const MarketCard = ({ item }) => (
+  const MarketCard = ({ item, isTaiwan=false }) => (
     <div className="bg-cardLight p-4 flex flex-col justify-between border-r border-b border-borderLight cursor-default hover:bg-[#F8F9FA] transition-colors">
       <div className="flex justify-between items-start mb-3">
         <div className="overflow-hidden">
@@ -198,8 +280,8 @@ function App() {
       <div>
         <p className="text-lg font-bold text-textMain tracking-tight mb-1">{formatPrice(item.close_price)}</p>
         <div className="flex space-x-3 text-sm">
-          <ValueCell item={item} />
-          <ValueCell item={item} isPct />
+          <ValueCell item={item} isTaiwan={isTaiwan} />
+          <ValueCell item={item} isPct isTaiwan={isTaiwan} />
         </div>
       </div>
     </div>
@@ -241,6 +323,12 @@ function App() {
                 className={`px-4 py-2 text-sm font-bold transition-colors uppercase tracking-wider rounded ${mainTab === 'commodities' ? 'bg-[#E3EBFF] text-[#2962ff]' : 'text-textMuted hover:text-textMain'}`}
               >
                 Commodities
+              </button>
+              <button 
+                onClick={() => setMainTab('tw_stocks')}
+                className={`px-4 py-2 text-sm font-bold transition-colors uppercase tracking-wider rounded ${mainTab === 'tw_stocks' ? 'bg-[#E3EBFF] text-[#2962ff]' : 'text-textMuted hover:text-textMain'}`}
+              >
+                TW Stocks
               </button>
             </div>
           </div>
@@ -533,6 +621,336 @@ function App() {
               <div className="text-center py-24 text-textMuted">Loading Commodities...</div>
             )}
             
+          </div>
+        )}
+
+        {/* --- TW STOCKS TAB CONTENT --- */}
+        {mainTab === 'tw_stocks' && twData && (
+          <div className="space-y-12">
+            <section>
+              <div className="flex justify-between items-end mb-4 border-b border-borderLight pb-2 mt-4">
+                <h2 className="text-xl font-bold text-textMain font-sans">台股指數與籌碼</h2>
+              </div>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-semibold text-textMuted uppercase tracking-wider mb-2 font-sans">大盤指數</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 border-l border-t border-borderLight bg-bgLight overflow-hidden">
+                    {(twData.indices?.data || []).map(idx => (
+                      <MarketCard key={idx.symbol} item={idx} isTaiwan={true} />
+                    ))}
+                    {(twData.indices?.data || []).length === 0 && <div className="p-4 text-xs text-textMuted border-b border-r border-borderLight font-sans">無資料</div>}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Institutional Net */}
+                    <div className="col-span-1 bg-cardLight border border-borderLight rounded shadow-sm overflow-hidden flex flex-col">
+                      <div className="bg-[#131722] px-4 py-2 text-white font-bold tracking-wide text-sm font-sans">三大法人買賣超</div>
+                      <div className="overflow-x-auto flex-1">
+                        <table className="w-full text-sm text-left">
+                          <thead className="text-xs text-textMuted bg-[#F8F9FA] border-b border-borderLight font-sans">
+                            <tr><th className="px-4 py-2 font-semibold font-sans">單位</th><th className="px-4 py-2 font-semibold text-right font-sans">加權買賣超(元)</th><th className="px-4 py-2 font-semibold text-right font-sans">櫃買買賣超(元)</th></tr>
+                          </thead>
+                          <tbody className="divide-y divide-borderLight">
+                            {(twData.chips?.institutional || []).map(chip => (
+                              <tr key={chip.entity} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-4 py-2 font-bold text-textMain font-sans">{chip.entity}</td>
+                                <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.twse_net >= 0 ? 'text-tw-up' : 'text-tw-down'}>{chip.twse_net.toLocaleString()}</span></td>
+                                <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.tpex_net >= 0 ? 'text-tw-up' : 'text-tw-down'}>{chip.tpex_net.toLocaleString()}</span></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    {/* Futures Net */}
+                    <div className="col-span-1 bg-cardLight border border-borderLight rounded shadow-sm overflow-hidden flex flex-col">
+                      <div className="bg-[#131722] px-4 py-2 text-white font-bold tracking-wide text-sm font-sans">臺股期貨(大台)</div>
+                      <div className="overflow-x-auto flex-1">
+                        <table className="w-full text-sm text-left">
+                          <thead className="text-xs text-textMuted bg-[#F8F9FA] border-b border-borderLight font-sans">
+                            <tr><th className="px-4 py-2 font-semibold font-sans">單位</th><th className="px-4 py-2 font-semibold text-right font-sans">多空淨額口數</th><th className="px-4 py-2 font-semibold text-right font-sans">未平倉餘額(OI)</th></tr>
+                          </thead>
+                          <tbody className="divide-y divide-borderLight">
+                            {(twData.chips?.futures || []).map(chip => (
+                              <tr key={chip.entity} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-4 py-2 font-bold text-textMain font-sans">{chip.entity}</td>
+                                <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.net_contracts >= 0 ? 'text-tw-up' : 'text-tw-down'}>{chip.net_contracts.toLocaleString()}</span></td>
+                                <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.oi_contracts >= 0 ? 'text-tw-up' : 'text-tw-down'}>{chip.oi_contracts.toLocaleString()}</span></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Margin Net */}
+                  <div className="bg-cardLight border border-borderLight rounded shadow-sm overflow-hidden flex flex-col">
+                    <div className="bg-[#131722] px-4 py-2 text-white font-bold tracking-wide text-sm font-sans">融資融券與借券</div>
+                    <div className="overflow-x-auto flex-1">
+                      <table className="w-full text-sm text-left">
+                        <thead className="text-xs text-textMuted bg-[#F8F9FA] border-b border-borderLight font-sans whitespace-nowrap">
+                          <tr>
+                            <th className="px-4 py-2 font-semibold font-sans">市場</th>
+                            <th className="px-4 py-2 font-semibold text-right font-sans">融資增減(億)</th>
+                            <th className="px-4 py-2 font-semibold text-right font-sans">融資餘額(億)</th>
+                            <th className="px-4 py-2 font-semibold text-right font-sans">融券增減(萬張)</th>
+                            <th className="px-4 py-2 font-semibold text-right font-sans">融券餘額(萬張)</th>
+                            <th className="px-4 py-2 font-semibold text-right font-sans">借券增減(萬張)</th>
+                            <th className="px-4 py-2 font-semibold text-right font-sans">借券餘額(萬張)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-borderLight">
+                          {(twData.chips?.margin || []).map(chip => (
+                            <tr key={chip.market} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-2 font-bold text-textMain font-sans whitespace-nowrap">{chip.market}</td>
+                              <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.margin_change >= 0 ? 'text-tw-up' : 'text-tw-down'}>{(chip.margin_change/100000).toFixed(2)}</span></td>
+                              <td className="px-4 py-2 text-right font-medium tabular-nums"><span className="text-textMain">{(chip.margin_bal/100000).toFixed(2)}</span></td>
+                              <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.short_change >= 0 ? 'text-tw-up' : 'text-tw-down'}>{(chip.short_change/10000).toFixed(2)}</span></td>
+                              <td className="px-4 py-2 text-right font-medium tabular-nums"><span className="text-textMain">{(chip.short_bal/10000).toFixed(2)}</span></td>
+                              <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.lend_change >= 0 ? 'text-tw-up' : 'text-tw-down'}>{(chip.lend_change/10000).toFixed(2)}</span></td>
+                              <td className="px-4 py-2 text-right font-medium tabular-nums"><span className="text-textMain">{(chip.lend_bal/10000).toFixed(2)}</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <div className="flex flex-col lg:flex-row justify-between items-end mb-4 border-b border-borderLight pb-2">
+                <h2 className="text-xl font-bold text-textMain font-sans">類股與主要個股</h2>
+                <div className="flex gap-2">
+                    <button onClick={() => {setTwMarketTab('TWSE'); setSelectedTwSector(twData?.sectors_data?.TWSE?.[0]?.name)}} className={`px-4 py-1.5 font-sans font-bold text-sm rounded ${twMarketTab === 'TWSE' ? 'bg-[#2962ff] text-white' : 'bg-cardLight text-textMuted border border-borderLight hover:bg-gray-50'}`}>上市 (TWSE)</button>
+                    <button onClick={() => {setTwMarketTab('TPEx'); setSelectedTwSector(twData?.sectors_data?.TPEx?.[0]?.name)}} className={`px-4 py-1.5 font-sans font-bold text-sm rounded ${twMarketTab === 'TPEx' ? 'bg-[#2962ff] text-white' : 'bg-cardLight text-textMuted border border-borderLight hover:bg-gray-50'}`}>上櫃 (TPEx)</button>
+                </div>
+              </div>
+              
+              <div className="flex flex-col lg:flex-row gap-6 items-start">
+                <div className="w-full lg:w-[480px] flex-shrink-0 bg-cardLight border border-borderLight shadow-sm rounded">
+                  <div className="px-4 py-3 border-b border-borderLight bg-[#F8F9FA]">
+                    <h3 className="font-semibold text-textMain text-sm uppercase tracking-wider font-sans">代表性類股</h3>
+                  </div>
+                  <div className="grid grid-cols-12 bg-bgLight border-b border-borderLight pr-4">
+                    <div className="col-span-3"><SortableHeader label="類別名稱" sortKey="name" currentSort={sortSectors} onSort={handleSortSectors} /></div>
+                    <div className="col-span-3"><SortableHeader label="漲跌幅" sortKey="change_pct" currentSort={sortSectors} onSort={handleSortSectors} align="right" /></div>
+                    <div className="col-span-3"><SortableHeader label="成交金額(億)" sortKey="volume" currentSort={sortSectors} onSort={handleSortSectors} align="right" /></div>
+                    <div className="col-span-3"><SortableHeader label="比重" sortKey="vol_ratio" currentSort={sortSectors} onSort={handleSortSectors} align="right" /></div>
+                  </div>
+                  <div className="divide-y divide-borderLight max-h-[800px] overflow-y-auto">
+                    {sortedTwSectors.map(sec => (
+                      <div 
+                        key={sec.name} 
+                        onClick={() => setSelectedTwSector(sec.name)}
+                        className={`grid grid-cols-12 gap-2 px-4 py-3 items-center cursor-pointer transition-colors text-sm
+                          ${selectedTwSector === sec.name ? 'bg-[#E3EBFF] border-l-4 border-l-[#2962ff]' : 'hover:bg-[#F8F9FA] border-l-4 border-l-transparent'}`}
+                      >
+                        <div className="col-span-3 flex flex-col justify-center overflow-hidden">
+                          <span className="font-bold text-textMain font-sans truncate" title={sec.name}>{sec.name}</span>
+                        </div>
+                        <div className="col-span-3 text-right tabular-nums">
+                          <ValueCell item={sec} isPct isTaiwan />
+                        </div>
+                        <div className="col-span-3 text-right font-medium text-textMain tabular-nums truncate text-xs lg:text-sm">
+                          {sec.volume.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                        <div className="col-span-3 text-right font-medium text-textMuted tabular-nums text-xs lg:text-sm">
+                          {(sec.vol_ratio * 100).toFixed(2)}%
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex-1 w-full bg-cardLight border border-borderLight shadow-sm overflow-x-auto rounded">
+                  <div className="px-4 py-3 border-b border-borderLight bg-[#F8F9FA] flex justify-between items-center min-w-[700px]">
+                    <h3 className="font-semibold text-textMain text-sm tracking-wider font-sans">
+                      排行前 15 大成分股: <span className="text-primary">{selectedTwSector || '請選擇類股'}</span>
+                    </h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-12 min-w-[700px] bg-bgLight border-b border-borderLight">
+                    <div className="col-span-3"><SortableHeader label="股票" sortKey="symbol" currentSort={sortStocks} onSort={handleSortStocks} /></div>
+                    <div className="col-span-2"><SortableHeader label="日期" sortKey="date" currentSort={sortStocks} onSort={handleSortStocks} /></div>
+                    <div className="col-span-2"><SortableHeader label="收盤價" sortKey="close_price" currentSort={sortStocks} onSort={handleSortStocks} align="right" /></div>
+                    <div className="col-span-2"><SortableHeader label="漲跌幅 %" sortKey="change_pct" currentSort={sortStocks} onSort={handleSortStocks} align="right" /></div>
+                    <div className="col-span-1"><SortableHeader label="成交量(張)" sortKey="volume" currentSort={sortStocks} onSort={handleSortStocks} align="right" /></div>
+                    <div className="col-span-2"><SortableHeader label="市值(億)" sortKey="market_cap" currentSort={sortStocks} onSort={handleSortStocks} align="right" /></div>
+                  </div>
+                  
+                  <div className="divide-y divide-borderLight min-w-[700px]">
+                    {sortedTwStocks.length > 0 ? sortedTwStocks.map(stock => (
+                      <div key={stock.symbol} className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-[#F8F9FA] transition-colors cursor-default text-sm">
+                        <div className="col-span-3 flex flex-col justify-center overflow-hidden">
+                          <span className="font-bold text-textMain truncate">{stock.name}</span>
+                          <span className="text-xs text-textMuted truncate">{stock.symbol}</span>
+                        </div>
+                        <div className="col-span-2 font-medium text-textMuted tabular-nums">
+                          {stock.date}
+                        </div>
+                        <div className="col-span-2 text-right font-medium text-textMain tabular-nums">
+                          {formatPrice(stock.close_price)}
+                        </div>
+                        <div className="col-span-2 text-right tabular-nums">
+                          <ValueCell item={stock} isPct isTaiwan />
+                        </div>
+                        <div className="col-span-1 text-right font-medium text-textMuted tabular-nums">
+                          {stock.volume.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </div>
+                        <div className="col-span-2 text-right font-medium text-textMuted tabular-nums pr-2">
+                           {stock.market_cap.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="text-center py-24 text-textMuted font-sans">
+                        {selectedTwSector ? '此類別無個股資料。' : '請由左側點選類股組合。'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <div className="flex justify-between items-end mb-4 border-b border-borderLight pb-2 mt-8">
+                <h2 className="text-xl font-bold text-textMain font-sans">台股強弱勢篩選 (Screener)</h2>
+              </div>
+              
+              <div className="bg-cardLight border border-borderLight shadow-sm rounded overflow-hidden">
+                <div className="flex border-b border-borderLight bg-[#F8F9FA] overflow-x-auto">
+                  <button 
+                    className={`px-8 py-3 font-semibold text-sm transition-colors tracking-wider font-sans
+                    ${twScreenerBucket === 'TWSE' ? 'bg-white text-primary border-t-2 border-t-primary border-x border-x-borderLight border-b-0 -mb-[1px]' : 'text-textMuted hover:text-textMain border-b border-b-borderLight'}`}
+                    onClick={() => { setTwScreenerBucket('TWSE'); setActiveTwFilter(twScreenerTab === 'upward' ? 'gain_3' : 'loss_3') }}
+                  >
+                    加權指數 (TWSE)
+                  </button>
+                  <button 
+                    className={`px-8 py-3 font-semibold text-sm transition-colors tracking-wider font-sans
+                    ${twScreenerBucket === 'TPEX' ? 'bg-white text-primary border-t-2 border-t-primary border-x border-x-borderLight border-b-0 -mb-[1px]' : 'text-textMuted hover:text-textMain border-b border-b-borderLight'}`}
+                    onClick={() => { setTwScreenerBucket('TPEX'); setActiveTwFilter(twScreenerTab === 'upward' ? 'gain_3' : 'loss_3') }}
+                  >
+                    櫃買指數 (TPEx)
+                  </button>
+                  <button 
+                    className={`px-8 py-3 font-semibold text-sm transition-colors tracking-wider font-sans
+                    ${twScreenerBucket === 'Emerging' ? 'bg-white text-primary border-t-2 border-t-primary border-x border-x-borderLight border-b-0 -mb-[1px]' : 'text-textMuted hover:text-textMain border-b border-b-borderLight'}`}
+                    onClick={() => { setTwScreenerBucket('Emerging'); setActiveTwFilter(twScreenerTab === 'upward' ? 'gain_3' : 'loss_3') }}
+                  >
+                    興櫃 (Emerging)
+                  </button>
+                </div>
+
+                <div className="flex border-b border-borderLight">
+                  <button 
+                    className={`flex-1 py-2 font-semibold text-sm transition-colors tracking-wider font-sans
+                    ${twScreenerTab === 'upward' ? 'bg-[#F8F9FA] text-tw-up border-b-2 border-b-tw-up' : 'text-textMuted hover:text-textMain'}`}
+                    onClick={() => { setTwScreenerTab('upward'); setActiveTwFilter('gain_3') }}
+                  >
+                    上漲組別 (漲幅與創新高)
+                  </button>
+                  <button 
+                    className={`flex-1 py-2 font-semibold text-sm transition-colors tracking-wider font-sans
+                    ${twScreenerTab === 'downward' ? 'bg-[#F8F9FA] text-tw-down border-b-2 border-b-tw-down' : 'text-textMuted hover:text-textMain'}`}
+                    onClick={() => { setTwScreenerTab('downward'); setActiveTwFilter('loss_3') }}
+                  >
+                    下跌組別 (跌幅與創新低)
+                  </button>
+                </div>
+
+                <div className="p-4 bg-[#F8F9FA] border-b border-borderLight flex flex-wrap gap-2">
+                  {twScreenerTab === 'upward' ? (
+                    <>
+                      <span className="text-xs font-bold text-textMuted mr-2 my-auto font-sans">漲幅 (Block 1):</span>
+                      {['gain_3|> 3%', 'gain_5|> 5%', 'gain_10|漲停 (>9.5%)'].map(f => {
+                        const [k, lbl] = f.split('|');
+                        return <button key={k} onClick={() => setActiveTwFilter(k)} className={`px-3 py-1.5 rounded text-xs font-semibold font-sans transition ${activeTwFilter === k ? 'bg-tw-up text-white' : 'bg-white border border-borderLight text-textMain hover:bg-gray-100'}`}>{lbl}</button>
+                      })}
+                      <span className="text-xs font-bold text-textMuted ml-6 mr-2 my-auto font-sans">新高 (Block 2):</span>
+                      {['h_30|創30日新高', 'h_90|創90日新高', 'h_180|創180日新高', 'h_all|創歷史新高'].map(f => {
+                        const [k, lbl] = f.split('|');
+                        return <button key={k} onClick={() => setActiveTwFilter(k)} className={`px-3 py-1.5 rounded text-xs font-semibold font-sans transition ${activeTwFilter === k ? 'bg-primary text-white' : 'bg-white border border-borderLight text-textMain hover:bg-gray-100'}`}>{lbl}</button>
+                      })}
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xs font-bold text-textMuted mr-2 my-auto font-sans">跌幅 (Block 3):</span>
+                      {['loss_3|< -3%', 'loss_5|< -5%', 'loss_10|跌停 (< -9.5%)'].map(f => {
+                        const [k, lbl] = f.split('|');
+                        return <button key={k} onClick={() => setActiveTwFilter(k)} className={`px-3 py-1.5 rounded text-xs font-semibold font-sans transition ${activeTwFilter === k ? 'bg-tw-down text-white' : 'bg-white border border-borderLight text-textMain hover:bg-gray-100'}`}>{lbl}</button>
+                      })}
+                      <span className="text-xs font-bold text-textMuted ml-6 mr-2 my-auto font-sans">新低 (Block 4):</span>
+                      {['l_30|創30日新低', 'l_90|創90日新低', 'l_180|創180日新低', 'l_all|創歷史新低'].map(f => {
+                        const [k, lbl] = f.split('|');
+                        return <button key={k} onClick={() => setActiveTwFilter(k)} className={`px-3 py-1.5 rounded text-xs font-semibold font-sans transition ${activeTwFilter === k ? 'bg-primary text-white' : 'bg-white border border-borderLight text-textMain hover:bg-gray-100'}`}>{lbl}</button>
+                      })}
+                    </>
+                  )}
+                </div>
+
+                <div className="p-4 bg-white min-h-[400px]">
+                  {Object.keys(currentTwGroups).length === 0 ? (
+                    <div className="text-center py-20 text-textMuted font-sans">
+                      當前條件無符合股票資料，或是尚未收到更新資料。
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {Object.entries(currentTwGroups).map(([sectorName, industriesObj]) => (
+                        <div key={sectorName} className="border border-borderLight rounded-lg overflow-hidden shadow-sm">
+                          <div className="bg-[#131722] px-4 py-2 text-white font-bold tracking-wide text-sm font-sans">
+                            {sectorName}
+                          </div>
+                          
+                          {Object.entries(industriesObj).map(([industryName, stocksArr]) => (
+                            <div key={industryName} className="border-t border-borderLight first:border-0">
+                              <div className="bg-[#F8F9FA] px-4 py-1.5 border-b border-borderLight">
+                                <span className="text-xs font-semibold text-textMuted font-sans">{industryName}</span>
+                                <span className="ml-2 text-xs font-bold text-textMain bg-white px-2 py-0.5 rounded border border-borderLight">{stocksArr.length}</span>
+                              </div>
+                              
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                  <thead className="text-xs text-textMuted bg-white border-b border-borderLight font-sans">
+                                    <tr>
+                                      <th className="px-4 py-2 font-semibold">日期</th>
+                                      <th className="px-4 py-2 font-semibold">代號</th>
+                                      <th className="px-4 py-2 font-semibold">名稱</th>
+                                      <th className="px-4 py-2 font-semibold text-right">收盤價</th>
+                                      <th className="px-4 py-2 font-semibold text-right">漲跌幅</th>
+                                      <th className="px-4 py-2 font-semibold text-right">成交量</th>
+                                      <th className="px-4 py-2 font-semibold text-right">市值</th>
+                                      <th className="px-4 py-2 font-semibold text-right">本益比(TTM)</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-borderLight">
+                                    {stocksArr.sort((a,b) => b.market_cap - a.market_cap).map(stock => (
+                                      <tr key={stock.symbol} className="hover:bg-[#F8F9FA] transition-colors">
+                                        <td className="px-4 py-2 text-textMuted whitespace-nowrap">{stock.date}</td>
+                                        <td className="px-4 py-2 font-bold text-textMain">{stock.symbol.split(':')[1] || stock.symbol}</td>
+                                        <td className="px-4 py-2 text-textMuted truncate max-w-[200px]" title={stock.name}>{stock.name}</td>
+                                        <td className="px-4 py-2 text-right font-medium text-textMain tabular-nums">{formatPrice(stock.close_price)}</td>
+                                        <td className="px-4 py-2 text-right tabular-nums"><ValueCell item={stock} isPct isTaiwan /></td>
+                                        <td className="px-4 py-2 text-right text-textMuted tabular-nums">{formatLargeNum(stock.volume)}</td>
+                                        <td className="px-4 py-2 text-right text-textMuted tabular-nums">{formatLargeNum(stock.market_cap)}</td>
+                                        <td className="px-4 py-2 text-right text-textMuted tabular-nums">{stock.pe_ratio ? stock.pe_ratio.toFixed(2) : '-'}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
           </div>
         )}
 

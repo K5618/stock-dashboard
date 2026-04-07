@@ -9,6 +9,8 @@ export default {
       colors: {
         up: '#089981',        // TV Green
         down: '#f23645',      // TV Red
+        'tw-up': '#f23645',   // Taiwan Up (Red)
+        'tw-down': '#089981', // Taiwan Down (Green)
         primary: '#2962ff',   // TV Blue
         bgLight: '#F8F9FA',   // White/Grey Background
         cardLight: '#FFFFFF', // Pure White Component Backs
@@ -18,6 +20,7 @@ export default {
       },
       fontFamily: {
         sans: [
+          'Noto Sans TC',
           '-apple-system',
           'BlinkMacSystemFont',
           'Trebuchet MS',

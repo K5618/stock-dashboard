@@ -1,0 +1,5 @@
+{
+  "Institutional (三大法人)": "'DataLoader' object has no attribute 'taiwan_stock_total_institutional_investors'",
+  "Futures (期貨)": "'data'",
+  "Margin (融資券)": "'DataLoader' object has no attribute 'taiwan_stock_total_margin_purchase_short_sale'"
+}
