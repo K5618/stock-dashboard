@@ -8,6 +8,7 @@ function App() {
   const [authError, setAuthError] = useState('')
 
   const [status, setStatus] = useState("Loading...")
+  const [warnings, setWarnings] = useState([])
   const [indices, setIndices] = useState({ US: [], Europe: [], Asia: [] })
   
   // Data sets
@@ -63,6 +64,7 @@ function App() {
       const data = snapshots[0].data
       
       setStatus(data.status.last_updated)
+      setWarnings(data.status.warnings || [])
       setIndices(data.indices?.data || { US: [], Europe: [], Asia: [] })
       setSectors(data.sectors?.data || [])
       setTopStocks(data.top_stocks?.data || {})
@@ -333,13 +335,22 @@ function App() {
             </div>
           </div>
           <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-1 text-xs text-textMuted bg-bgLight px-3 py-1.5 rounded-sm border border-borderLight font-mono">
-              <span className="inline-block w-2 h-2 rounded-full bg-up animate-pulse mr-1"></span>
+            <div className={`flex items-center space-x-1 text-xs text-textMuted px-3 py-1.5 rounded-sm border font-mono ${warnings.length > 0 ? 'bg-red-50 border-red-300 text-red-600' : 'bg-bgLight border-borderLight'}`}>
+              <span className={`inline-block w-2 h-2 rounded-full animate-pulse mr-1 ${warnings.length > 0 ? 'bg-red-500' : 'bg-up'}`}></span>
               LIVE DATA <span className="mx-2">|</span> {status}
             </div>
             <button onClick={() => setIsAuth(false)} className="text-sm text-textMuted hover:text-textMain underline ml-4">登出 Logout</button>
           </div>
         </div>
+        {warnings.length > 0 && (
+          <div className="max-w-[1600px] mx-auto px-4 lg:px-8 pb-3">
+            {warnings.map((w, i) => (
+              <div key={i} className="text-xs font-semibold text-red-600 bg-red-100 border border-red-200 px-3 py-1.5 rounded inline-block mr-2">
+                ⚠️ API 例外警告: {w}
+              </div>
+            ))}
+          </div>
+        )}
       </nav>
 
       {/* Main Content Area */}

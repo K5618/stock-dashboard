@@ -9,6 +9,8 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
       contents: write # 允許寫入以便推送到 gh-pages 分支
 
@@ -23,7 +25,7 @@ jobs:
 
       - name: Install Python Dependencies
         run: |
-          pip install yfinance pandas requests supabase
+          pip install -r backend/requirements.txt
 
       - name: Fetch and Upload Stock Data
         env:

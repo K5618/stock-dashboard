@@ -30,6 +30,9 @@ class TradingViewScanner(BaseDataProvider):
             "range": [0, limit]
         }
         
+        if self.market == "america":
+            query["filter"] = [{"left": "exchange", "operation": "in_range", "right": ["AMEX", "NASDAQ", "NYSE"]}]
+        
         proxies = {"http": self.proxy, "https": self.proxy} if self.proxy else None
         
         try:

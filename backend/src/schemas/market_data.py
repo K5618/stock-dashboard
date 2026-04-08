@@ -63,7 +63,7 @@ class MarginChip(BaseModel):
     lend_bal: float = Field(default=0.0)
 
 class MarketSnapshot(BaseModel):
-    status: Dict[str, str]
+    status: Dict[str, Any]
     indices: Dict[str, Any]
     sectors: Dict[str, Any]
     top_stocks: Dict[str, Any]

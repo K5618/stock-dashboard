@@ -16,7 +16,7 @@ class GlobalDataAggregator:
         print(f"Starting Global Data generation at {now_str}")
 
         result_data = {
-            "status": { "last_updated": now_str },
+            "status": { "last_updated": now_str, "warnings": [] },
             "indices": {"data": { "US": [], "Europe": [], "Asia": [] }},
             "sectors": {"data": []},
             "top_stocks": {"data": {}},
@@ -33,6 +33,8 @@ class GlobalDataAggregator:
             }
         }
 
+        yf_errors = 0
+        
         # 1. Update Regional Indices
         for region, indices in REGION_INDICES.items():
             for symbol, name in indices.items():
@@ -42,7 +44,7 @@ class GlobalDataAggregator:
                         data['name'] = name
                         result_data["indices"]["data"][region].append(data)
                 except Exception:
-                    pass
+                    yf_errors += 1
 
         # 2. Update Sector ETFs
         for symbol, name in SECTOR_ETFS.items():
@@ -52,7 +54,7 @@ class GlobalDataAggregator:
                     data['name'] = name
                     result_data["sectors"]["data"].append(data)
             except Exception:
-                pass
+                yf_errors += 1
 
         # 3. New Commodities
         for major_cat, sub_cat_obj in COMMODITIES_HIERARCHY.items():
@@ -68,13 +70,14 @@ class GlobalDataAggregator:
                             data['exchange'] = exchange
                             result_data["commodities"][major_cat][sub_cat].append(data)
                     except Exception:
-                        pass
+                        yf_errors += 1
 
         # 4. TV Screener
         try:
             tv_stocks = self.tv_scanner.fetch_data(1200)
         except Exception:
             tv_stocks = []
+            result_data["status"]["warnings"].append("TradingView Scanner API unavailable")
 
         for s in tv_stocks:
             s['date'] = now_str[:10]
@@ -104,6 +107,7 @@ class GlobalDataAggregator:
 
         # 5. Top Stocks (YFinance check matching GICS)
         tickers_500 = [x['symbol'] for x in tv_stocks[:500]] if tv_stocks else []
+        tv_name_map = {x['symbol']: x['name'] for x in tv_stocks} if tv_stocks else {}
         info_dict = {}
         if tickers_500:
             with ThreadPoolExecutor(max_workers=10) as executor:
@@ -124,9 +128,13 @@ class GlobalDataAggregator:
                     if sec != "Unknown" and cap > 0:
                         hist['sector'] = sec
                         hist['market_cap'] = cap
+                        
+                        comp_name = tv_name_map.get(sym, sym)
+                        hist['name'] = comp_name
+                        
                         all_hf_stocks.append(hist)
             except Exception:
-                pass
+                yf_errors += 1
 
         sector_group = {}
         for s in all_hf_stocks:
@@ -135,5 +143,8 @@ class GlobalDataAggregator:
         for sec, lst in sector_group.items():
             top_mc = sorted(lst, key=lambda x: x.get('market_cap', 0), reverse=True)[:10]
             result_data["top_stocks"]["data"][sec] = {"top_market_cap": top_mc}
+
+        if yf_errors > 0:
+            result_data["status"]["warnings"].append(f"Yahoo Finance API unstable: {yf_errors} queries failed.")
 
         return clean_nan(result_data)
