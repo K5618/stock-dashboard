@@ -32,13 +32,7 @@ COMMODITIES_HIERARCHY = {
     }
 }
 
-YF_SECTOR_MAPPING = {
-    "Healthcare": "Health Care", 
-    "Financial Services": "Financials", 
-    "Consumer Cyclical": "Consumer Discretionary", 
-    "Consumer Defensive": "Consumer Staples", 
-    "Basic Materials": "Materials"
-}
+
 
 COMMODITIES_EXCHANGE_MAPPING = {
     "GC=F": "COMEX", "SI=F": "COMEX", "HG=F": "COMEX", "CL=F": "NYMEX", "BZ=F": "NYMEX",

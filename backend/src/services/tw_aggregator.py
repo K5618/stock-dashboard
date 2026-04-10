@@ -89,7 +89,7 @@ class TaiwanDataAggregator:
                     
                     if cg <= -9.5: result_data["screener"][bucket]["block3"]["loss_10"].append(s)
                     elif cg <= -5: result_data["screener"][bucket]["block3"]["loss_5"].append(s)
-                    elif cg <= -3: result_data["screener"]["block3"]["loss_3"].append(s)
+                    elif cg <= -3: result_data["screener"][bucket]["block3"]["loss_3"].append(s)
                 
                 if c is not None and c > 0:
                     def near(val, target): return val is not None and target is not None and target > 0 and abs(val - target) / target < 0.005

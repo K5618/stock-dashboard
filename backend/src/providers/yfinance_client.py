@@ -18,6 +18,9 @@ class YFinanceProvider(BaseDataProvider):
         """
         Fetches historical data for a single symbol to extract close, change, and volume.
         """
+        import time
+        time.sleep(0.5)  # Anti-DDoS safety margin for YFinance API
+        
         try:
             ticker = yf.Ticker(symbol)
             hist = ticker.history(period=period)
@@ -35,8 +38,8 @@ class YFinanceProvider(BaseDataProvider):
             return {
                 "symbol": symbol,
                 "date": date_str,
-                "close": close,
-                "change": change,
+                "close_price": close,
+                "change_pt": change,
                 "change_pct": change_pct,
                 "volume": vol
             }

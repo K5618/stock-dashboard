@@ -1,7 +1,6 @@
 # src/services/global_aggregator.py
 from datetime import datetime, timezone, timedelta
-from concurrent.futures import ThreadPoolExecutor
-from src.config.constants import REGION_INDICES, SECTOR_ETFS, COMMODITIES_HIERARCHY, YF_SECTOR_MAPPING, COMMODITIES_EXCHANGE_MAPPING
+from src.config.constants import REGION_INDICES, SECTOR_ETFS, COMMODITIES_HIERARCHY, COMMODITIES_EXCHANGE_MAPPING
 from src.providers.yfinance_client import YFinanceProvider
 from src.providers.tv_scraper import TradingViewScanner
 from src.utils.parsers import clean_nan
@@ -105,36 +104,55 @@ class GlobalDataAggregator:
                 if near(c, s.get('l_180')): result_data["screener"]["block4"]["l_180"].append(s)
                 if near(c, s.get('l_all')): result_data["screener"]["block4"]["l_all"].append(s)
 
-        # 5. Top Stocks (YFinance check matching GICS)
-        tickers_500 = [x['symbol'] for x in tv_stocks[:500]] if tv_stocks else []
-        tv_name_map = {x['symbol']: x['name'] for x in tv_stocks} if tv_stocks else {}
-        info_dict = {}
-        if tickers_500:
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                results = executor.map(self.yf_provider.fetch_info, tickers_500)
-                for res in results:
-                    if res:
-                        info_dict[res['symbol']] = res
+        # 5. Top Stocks (TradingView based, mapped to GICS)
+        import os
+        import json
+        sector_map = {}
+        map_path = os.path.join(os.path.dirname(__file__), "..", "config", "sector_map.json")
+        try:
+            with open(map_path, "r", encoding="utf-8") as f:
+                sector_map = json.load(f)
+        except Exception as e:
+            print(f"Warning: Could not load sector_map.json: {e}")
 
         all_hf_stocks = []
-        for sym in tickers_500:
-            try:
-                hist = self.yf_provider.fetch_data(sym)
-                if hist:
-                    sec = info_dict.get(sym, {}).get('sector', "Unknown")
-                    sec = YF_SECTOR_MAPPING.get(sec, sec)
-                    cap = info_dict.get(sym, {}).get('market_cap', 0)
-                    
-                    if sec != "Unknown" and cap > 0:
-                        hist['sector'] = sec
-                        hist['market_cap'] = cap
-                        
-                        comp_name = tv_name_map.get(sym, sym)
-                        hist['name'] = comp_name
-                        
-                        all_hf_stocks.append(hist)
-            except Exception:
-                yf_errors += 1
+        for s in (tv_stocks[:500] if tv_stocks else []):
+            sym = s.get('symbol')
+            if not sym: continue
+            
+            # Exclude preferred and depositary shares
+            name_lower = s.get('name', '').lower()
+            if '/' in sym or '-' in sym or 'pfd' in name_lower or 'depositary' in name_lower or 'preferred' in name_lower:
+                continue
+            
+            # Map TV sector to GICS via our loaded local map (fallback to TV sector if not found)
+            sec = sector_map.get(sym, s.get('sector', 'Unknown'))
+            cap = s.get('market_cap', 0)
+            
+            if sec != "Unknown" and cap > 0:
+                stock_data = {
+                    'symbol': sym,
+                    'name': s.get('name', sym),
+                    'sector': sec,
+                    'market_cap': cap,
+                    'date': now_str[:10],
+                    'close_price': s.get('close_price', 0),
+                    'change_pct': s.get('change_pct', 0),
+                    'volume': s.get('volume', 0)
+                }
+                
+                # Optional absolute change calculation
+                close_p = stock_data['close_price']
+                pct = stock_data['change_pct']
+                if close_p and pct is not None:
+                    try:
+                        stock_data['change_pt'] = close_p - (close_p / (1 + pct / 100))
+                    except:
+                        stock_data['change_pt'] = 0
+                else:
+                    stock_data['change_pt'] = 0
+
+                all_hf_stocks.append(stock_data)
 
         sector_group = {}
         for s in all_hf_stocks:

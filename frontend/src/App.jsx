@@ -52,16 +52,30 @@ function App() {
 
   const fetchData = async () => {
     try {
-      const { data: snapshots, error } = await supabase
-        .from('market_snapshots')
-        .select('data')
-        .order('created_at', { ascending: false })
-        .limit(1)
-
-      if (error) throw error
-      if (!snapshots || snapshots.length === 0) throw new Error("No data found")
+      let data = null;
+      const baseUrl = import.meta.env.BASE_URL || '/';
+      const fetchUrl = baseUrl.endsWith('/') ? baseUrl + 'data.json' : baseUrl + '/data.json';
       
-      const data = snapshots[0].data
+      try {
+        // local dev often prefers local fresh JSON over stale supabase
+        const req = await fetch(fetchUrl);
+        if (req.ok) {
+          data = await req.json();
+        } else {
+          throw new Error("Local data.json not found");
+        }
+      } catch (localErr) {
+        // Fallback to Supabase
+        const { data: snapshots, error } = await supabase
+          .from('market_snapshots')
+          .select('data')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (error) throw error;
+        if (!snapshots || snapshots.length === 0) throw new Error("No data found");
+        data = snapshots[0].data;
+      }
       
       setStatus(data.status.last_updated)
       setWarnings(data.status.warnings || [])
