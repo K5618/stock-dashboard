@@ -374,7 +374,10 @@ function App() {
           <>
             <section>
               <div className="flex justify-between items-end mb-4 border-b border-borderLight pb-2">
-                <h2 className="text-xl font-bold text-textMain">Major Indices</h2>
+                <h2 className="text-xl font-bold text-textMain flex items-center">
+                  Major Indices
+                  <span className="text-sm font-normal text-textMuted ml-3 select-none">(Updated: {status})</span>
+                </h2>
               </div>
               <div className="space-y-6">
                 {['US', 'Europe', 'Asia'].map(region => (
@@ -393,7 +396,10 @@ function App() {
 
             <section>
               <div className="flex justify-between items-end mb-4 border-b border-borderLight pb-2">
-                <h2 className="text-xl font-bold text-textMain">Sectors Performance & Top Components</h2>
+                <h2 className="text-xl font-bold text-textMain flex items-center">
+                  Sectors Performance & Top Components
+                  <span className="text-sm font-normal text-textMuted ml-3 select-none">(Updated: {status})</span>
+                </h2>
               </div>
               
               <div className="flex flex-col lg:flex-row gap-6 items-start">
@@ -476,7 +482,10 @@ function App() {
 
             <section>
               <div className="flex justify-between items-end mb-4 border-b border-borderLight pb-2 mt-8">
-                <h2 className="text-xl font-bold text-textMain">US Top 1200 Quant Screener</h2>
+                <h2 className="text-xl font-bold text-textMain flex items-center">
+                  US Top 1200 Quant Screener
+                  <span className="text-sm font-normal text-textMuted ml-3 select-none">(Updated: {status})</span>
+                </h2>
               </div>
               
               <div className="bg-cardLight border border-borderLight shadow-sm rounded overflow-hidden">
@@ -597,7 +606,10 @@ function App() {
               Object.entries(commodities).map(([marketBlock, subCategories]) => (
                 <section key={marketBlock}>
                   <div className="flex justify-between items-end mb-6 border-b border-borderLight pb-2 mt-4">
-                    <h2 className="text-2xl font-bold text-[#131722]">{marketBlock}</h2>
+                    <h2 className="text-2xl font-bold text-[#131722] flex items-center">
+                      {marketBlock}
+                      <span className="text-sm font-normal text-textMuted ml-3 select-none">(Updated: {status})</span>
+                    </h2>
                     <span className="text-xs text-textMuted">* Some futures quotes may be delayed.</span>
                   </div>
 

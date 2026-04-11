@@ -28,6 +28,16 @@ def main():
     # Store data
     db = SupabaseManager()
     db.upsert_snapshot("market_snapshots", validated_payload, limit=gc_limit)
+    
+    # Save local copy for local dev
+    import json
+    local_path = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'public', 'data.json')
+    try:
+        with open(local_path, 'w', encoding='utf-8') as f:
+            json.dump(validated_payload, f, ensure_ascii=False)
+        print("Local data.json updated.")
+    except Exception as e:
+        print(f"Warning: Could not write local data.json: {e}")
 
 if __name__ == '__main__':
     main()

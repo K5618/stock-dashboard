@@ -1,13 +1,11 @@
 # src/services/global_aggregator.py
 from datetime import datetime, timezone, timedelta
-from src.config.constants import REGION_INDICES, SECTOR_ETFS, COMMODITIES_HIERARCHY, COMMODITIES_EXCHANGE_MAPPING
-from src.providers.yfinance_client import YFinanceProvider
+from src.config.constants import REGION_INDICES, SECTOR_ETFS, COMMODITIES_HIERARCHY
 from src.providers.tv_scraper import TradingViewScanner
 from src.utils.parsers import clean_nan
 
 class GlobalDataAggregator:
     def __init__(self):
-        self.yf_provider = YFinanceProvider()
         self.tv_scanner = TradingViewScanner(market="america")
 
     def gather_data(self) -> dict:
@@ -32,44 +30,59 @@ class GlobalDataAggregator:
             }
         }
 
-        yf_errors = 0
+        tv_errors = 0
         
+        # Collect all tickers needed
+        index_tickers = [sym for items in REGION_INDICES.values() for sym in items.keys()]
+        sector_tickers = list(SECTOR_ETFS.keys())
+        commodity_tickers = [sym for cats in COMMODITIES_HIERARCHY.values() for items in cats.values() for sym in items.values()]
+        
+        all_tickers = list(set(index_tickers + sector_tickers + commodity_tickers))
+        fetched_data = {}
+        
+        try:
+            batch_result = self.tv_scanner.fetch_specific_symbols(all_tickers)
+            for item in batch_result:
+                close_p = item['close_price']
+                pct = item['change_pct']
+                if close_p and pct is not None:
+                    try:
+                        item['change_pt'] = close_p - (close_p / (1 + pct / 100))
+                    except:
+                        item['change_pt'] = 0
+                else:
+                    item['change_pt'] = 0
+                item['date'] = now_str[:10]
+                fetched_data[item['symbol']] = item
+        except Exception as e:
+            print(f"Error fetching specific symbols from TV: {e}")
+            tv_errors += 1
+            result_data["status"]["warnings"].append("TradingView Global specific symbols fetch failed.")
+
         # 1. Update Regional Indices
         for region, indices in REGION_INDICES.items():
             for symbol, name in indices.items():
-                try:
-                    data = self.yf_provider.fetch_data(symbol)
-                    if data:
-                        data['name'] = name
-                        result_data["indices"]["data"][region].append(data)
-                except Exception:
-                    yf_errors += 1
+                if symbol in fetched_data:
+                    data = fetched_data[symbol].copy()
+                    data['name'] = name
+                    result_data["indices"]["data"][region].append(data)
 
         # 2. Update Sector ETFs
         for symbol, name in SECTOR_ETFS.items():
-            try:
-                data = self.yf_provider.fetch_data(symbol)
-                if data:
-                    data['name'] = name
-                    result_data["sectors"]["data"].append(data)
-            except Exception:
-                yf_errors += 1
+            if symbol in fetched_data:
+                data = fetched_data[symbol].copy()
+                data['name'] = name
+                result_data["sectors"]["data"].append(data)
 
         # 3. New Commodities
         for major_cat, sub_cat_obj in COMMODITIES_HIERARCHY.items():
             for sub_cat, items in sub_cat_obj.items():
                 result_data["commodities"][major_cat][sub_cat] = []
                 for name, symbol in items.items():
-                    try:
-                        data = self.yf_provider.fetch_data(symbol)
-                        if data:
-                            data['name'] = name
-                            exchange = COMMODITIES_EXCHANGE_MAPPING.get(symbol, "CME/ICE")
-                            if symbol == "LIT": exchange = "ETF Proxy"
-                            data['exchange'] = exchange
-                            result_data["commodities"][major_cat][sub_cat].append(data)
-                    except Exception:
-                        yf_errors += 1
+                    if symbol in fetched_data:
+                        data = fetched_data[symbol].copy()
+                        data['name'] = name
+                        result_data["commodities"][major_cat][sub_cat].append(data)
 
         # 4. TV Screener
         try:
@@ -162,7 +175,7 @@ class GlobalDataAggregator:
             top_mc = sorted(lst, key=lambda x: x.get('market_cap', 0), reverse=True)[:10]
             result_data["top_stocks"]["data"][sec] = {"top_market_cap": top_mc}
 
-        if yf_errors > 0:
-            result_data["status"]["warnings"].append(f"Yahoo Finance API unstable: {yf_errors} queries failed.")
+        if tv_errors > 0:
+            result_data["status"]["warnings"].append(f"TradingView API encountered errors fetching batch symbols.")
 
         return clean_nan(result_data)

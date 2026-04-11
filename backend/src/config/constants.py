@@ -3,40 +3,33 @@
 # --- Global Market Constants ---
 
 REGION_INDICES = {
-    "US": { "^DJI": "Dow Jones", "^GSPC": "S&P 500", "^IXIC": "NASDAQ", "^SOX": "PHLX Semiconductor", "^RUT": "Russell 2000" },
-    "Europe": { "^GDAXI": "DAX", "^FCHI": "CAC 40", "^FTSE": "FTSE 100" },
-    "Asia": { "^TWII": "TAIEX", "^TWOII": "OTC", "^N225": "Nikkei 225", "^KS11": "KOSPI", "^AXJO": "ASX 200", "^HSI": "Hang Seng", "XIN9.FGI": "China A50", "000300.SS": "CSI 300", "000001.SS": "SSE Composite" }
+    "US": { "DJ:DJI": "Dow Jones", "SP:SPX": "S&P 500", "NASDAQ:IXIC": "NASDAQ", "NASDAQ:SOX": "PHLX Semiconductor", "TVC:RUT": "Russell 2000" },
+    "Europe": { "XETR:DAX": "DAX", "EURONEXT:PX1": "CAC 40", "TVC:UKX": "FTSE 100" },
+    "Asia": { "TVC:NI225": "Nikkei 225", "KRX:KOSPI": "KOSPI", "ASX:XJO": "ASX 200", "HSI:HSI": "Hang Seng", "SGX:CN1!": "China A50", "SSE:000300": "CSI 300", "SSE:000001": "SSE Composite" }
 }
 
 SECTOR_ETFS = {
-    "XLK": "Technology", "XLV": "Health Care", "XLF": "Financials", "XLY": "Consumer Discretionary", 
-    "XLI": "Industrials", "XLP": "Consumer Staples", "XLE": "Energy", "XLU": "Utilities", 
-    "XLRE": "Real Estate", "XLB": "Materials", "XLC": "Communication Services"
+    "AMEX:XLK": "Technology", "AMEX:XLV": "Health Care", "AMEX:XLF": "Financials", "AMEX:XLY": "Consumer Discretionary", 
+    "AMEX:XLI": "Industrials", "AMEX:XLP": "Consumer Staples", "AMEX:XLE": "Energy", "AMEX:XLU": "Utilities", 
+    "AMEX:XLRE": "Real Estate", "AMEX:XLB": "Materials", "AMEX:XLC": "Communication Services"
 }
 
 COMMODITIES_HIERARCHY = {
     "Metals": {
-        "Precious Metals": {"Gold": "GC=F", "Silver": "SI=F", "Platinum": "PL=F", "Palladium": "PA=F"},
-        "Base Metals": {"Copper": "HG=F", "Aluminum": "ALI=F", "Zinc": "ZNC=F", "Lead": "LED=F"},
-        "Ferrous Metals": {"Iron Ore": "TIO=F", "HRC": "HRC=F"},
-        "Battery Metals": {"Lithium": "LIT"}
+        "Precious Metals": {"Gold": "COMEX:GC1!", "Silver": "COMEX:SI1!", "Platinum": "NYMEX:PL1!", "Palladium": "NYMEX:PA1!"},
+        "Base Metals": {"Copper": "COMEX:HG1!", "Aluminum": "COMEX:ALI1!", "Zinc": "COMEX:ZNC1!", "Lead": "COMEX:LED1!"},
+        "Ferrous Metals": {"Iron Ore": "SGX:FEF1!", "HRC": "COMEX:HRC1!"},
+        "Battery Metals": {"Lithium": "AMEX:LIT"}
     },
     "Energy, Petrochemicals & Chemicals": {
-        "Energy & Crude Oil": {"WTI Crude Oil": "CL=F", "Brent Crude Oil": "BZ=F", "RBOB Gasoline": "RB=F", "Heating Oil": "HO=F"}
+        "Energy & Crude Oil": {"WTI Crude Oil": "NYMEX:CL1!", "Brent Crude Oil": "NYMEX:BZ1!", "RBOB Gasoline": "NYMEX:RB1!", "Heating Oil": "NYMEX:HO1!"}
     },
     "Agricultural Products": {
-        "Grains & Oilseeds": {"Soybeans": "ZS=F", "Soybean Oil": "ZL=F", "Soybean Meal": "ZM=F", "Corn": "ZC=F", "Wheat": "ZW=F", "Oats": "ZO=F"},
-        "Softs": {"Coffee": "KC=F", "Cocoa": "CC=F", "Sugar No. 11": "SB=F", "Cotton": "CT=F", "FCOJ": "OJ=F"},
-        "Livestock & Meats": {"Live Cattle": "LE=F", "Feeder Cattle": "GF=F", "Lean Hogs": "HE=F"},
-        "Regional & Specialty": {"Crude Palm Oil": "CPO=F"}
+        "Grains & Oilseeds": {"Soybeans": "CBOT:ZS1!", "Soybean Oil": "CBOT:ZL1!", "Soybean Meal": "CBOT:ZM1!", "Corn": "CBOT:ZC1!", "Wheat": "CBOT:ZW1!", "Oats": "CBOT:ZO1!"},
+        "Softs": {"Coffee": "ICEUS:KC1!", "Cocoa": "ICEUS:CC1!", "Sugar No. 11": "ICEUS:SB1!", "Cotton": "ICEUS:CT1!", "FCOJ": "ICEUS:OJ1!"},
+        "Livestock & Meats": {"Live Cattle": "CME:LE1!", "Feeder Cattle": "CME:GF1!", "Lean Hogs": "CME:HE1!"},
+        "Regional & Specialty": {"Crude Palm Oil": "MYX:FCPO1!"}
     }
-}
-
-
-
-COMMODITIES_EXCHANGE_MAPPING = {
-    "GC=F": "COMEX", "SI=F": "COMEX", "HG=F": "COMEX", "CL=F": "NYMEX", "BZ=F": "NYMEX",
-    "ZS=F": "CBOT", "ZC=F": "CBOT", "ZW=F": "CBOT"
 }
 
 # --- Taiwan Market Constants ---

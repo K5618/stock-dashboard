@@ -70,3 +70,42 @@ class TradingViewScanner(BaseDataProvider):
                 "exchange": str(d[17]) if len(d) > 17 and d[17] is not None else ""
             })
         return stocks
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((requests.exceptions.RequestException, ValueError))
+    )
+    def fetch_specific_symbols(self, symbols: List[str]) -> List[Dict[str, Any]]:
+        url = "https://scanner.tradingview.com/global/scan"
+        query = {
+            "symbols": {"tickers": symbols},
+            "columns": [
+                "name", "description", "close", "change", "volume", "exchange", "type"
+            ]
+        }
+        proxies = {"http": self.proxy, "https": self.proxy} if self.proxy else None
+        
+        try:
+            res = requests.post(url, json=query, proxies=proxies, timeout=15)
+            res.raise_for_status()
+            data = res.json()
+        except Exception as e:
+            print(f"TradingViewScanner symbol fetch error: {e}")
+            raise e
+
+        result = []
+        for x in data.get('data', []):
+            s = x['s']
+            d = x['d']
+            result.append({
+                "symbol": s,
+                "name": str(d[1]),
+                "close_price": float(d[2]) if d[2] is not None else 0.0,
+                "change_pct": float(d[3]) if d[3] is not None else 0.0,
+                "volume": float(d[4]) if d[4] is not None else 0.0,
+                "exchange": str(d[5]) if len(d) > 5 and d[5] is not None else "",
+                "type": str(d[6]) if len(d) > 6 and d[6] is not None else ""
+            })
+        return result
+
