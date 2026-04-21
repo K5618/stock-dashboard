@@ -11,7 +11,9 @@ class TwseProvider(BaseDataProvider):
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10), retry=retry_if_exception_type(requests.exceptions.RequestException))
     def fetch_data(self, endpoint: str, **kwargs) -> Any:
         url = ""
-        if endpoint == "opendata_sectors":
+        if endpoint == "latest_index":
+            url = "https://openapi.twse.com.tw/v1/exchangeReport/MI_INDEX"
+        elif endpoint == "opendata_sectors":
             url = "https://openapi.twse.com.tw/v1/opendata/t187ap03_L"
         elif endpoint == "sector_summary":
             # kwargs require date string like "20240101"
@@ -26,6 +28,9 @@ class TwseProvider(BaseDataProvider):
         elif endpoint == "margin":
             date_str = kwargs.get("date_str")
             url = f"https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date={date_str}&response=json"
+        elif endpoint == "lend":
+            date_str = kwargs.get("date_str")
+            url = f"https://www.twse.com.tw/rwd/zh/marginTrading/TWT93U?date={date_str}&response=json"
         else:
             raise ValueError(f"Unknown endpoint: {endpoint}")
 
@@ -43,14 +48,35 @@ class TpexProvider(BaseDataProvider):
         url = ""
         date_tw = kwargs.get("date_tw") # e.g. "113/01/01"
         
-        if endpoint == "opendata_sectors":
+        if endpoint == "latest_index":
+            url = f"https://www.tpex.org.tw/web/stock/aftertrading/index_summary/summary_result.php?l=zh-tw&o=json"
+        elif endpoint == "opendata_sectors":
             url = "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O"
         elif endpoint == "sector_summary":
             url = f"https://www.tpex.org.tw/web/stock/aftertrading/index_summary/summary_result.php?l=zh-tw&o=json&d={date_tw}"
         elif endpoint == "institutional":
-            url = f"https://www.tpex.org.tw/web/stock/3insti/3insti_summary/3itidy_result.php?l=zh-tw&o=json&d={date_tw}"
+            url = "https://www.tpex.org.tw/openapi/v1/tpex_3insti_summary"
         elif endpoint == "margin":
             url = f"https://www.tpex.org.tw/web/stock/margin_trading/margin_balance/margin_bal_result.php?l=zh-tw&o=json&d={date_tw}"
+        elif endpoint == "lend":
+            url = "https://www.tpex.org.tw/openapi/v1/tpex_margin_sbl"
+        else:
+            raise ValueError(f"Unknown endpoint: {endpoint}")
+
+        res = requests.get(url, timeout=15)
+        res.raise_for_status()
+        return res.json()
+
+
+class TaifexProvider(BaseDataProvider):
+    """
+    Fetches data from TAIFEX Open API.
+    """
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10), retry=retry_if_exception_type(requests.exceptions.RequestException))
+    def fetch_data(self, endpoint: str, **kwargs) -> Any:
+        url = ""
+        if endpoint == "institutional_futures_options":
+            url = "https://openapi.taifex.com.tw/v1/MarketDataOfMajorInstitutionalTradersDetailsOfFuturesContractsBytheDate"
         else:
             raise ValueError(f"Unknown endpoint: {endpoint}")
 

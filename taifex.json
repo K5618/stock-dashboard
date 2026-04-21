@@ -1,0 +1,53 @@
+[
+  {
+    "Date": "20260417",
+    "ContractCode": "臺股期貨",
+    "Item": "自營商",
+    "TradingVolume(Long)": "9363",
+    "TradingValue(Long)(Thousands)": "69688397",
+    "TradingVolume(Short)": "8066",
+    "TradingValue(Short)(Thousands)": "60034556",
+    "TradingVolume(Net)": "1297",
+    "TradingValue(Net)(Thousands)": "9653841",
+    "OpenInterest(Long)": "3888",
+    "ContractValueofOpenInterest(Long)(Thousands)": "28852790",
+    "OpenInterest(Short)": "9356",
+    "ContractValueofOpenInterest(Short)(Thousands)": "69404507",
+    "OpenInterest(Net)": "-5468",
+    "ContractValueofOpenInterest(Net)(Thousands)": "-40551717"
+  },
+  {
+    "Date": "20260417",
+    "ContractCode": "臺股期貨",
+    "Item": "投信",
+    "TradingVolume(Long)": "300",
+    "TradingValue(Long)(Thousands)": "2224646",
+    "TradingVolume(Short)": "633",
+    "TradingValue(Short)(Thousands)": "4693176",
+    "TradingVolume(Net)": "-333",
+    "TradingValue(Net)(Thousands)": "-2468530",
+    "OpenInterest(Long)": "46238",
+    "ContractValueofOpenInterest(Long)(Thousands)": "342882513",
+    "OpenInterest(Short)": "3946",
+    "ContractValueofOpenInterest(Short)(Thousands)": "29261958",
+    "OpenInterest(Net)": "42292",
+    "ContractValueofOpenInterest(Net)(Thousands)": "313620555"
+  },
+  {
+    "Date": "20260417",
+    "ContractCode": "臺股期貨",
+    "Item": "外資及陸資",
+    "TradingVolume(Long)": "55411",
+    "TradingValue(Long)(Thousands)": "412322471",
+    "TradingVolume(Short)": "56878",
+    "TradingValue(Short)(Thousands)": "423240064",
+    "TradingVolume(Net)": "-1467",
+    "TradingValue(Net)(Thousands)": "-10917593",
+    "OpenInterest(Long)": "18245",
+    "ContractValueofOpenInterest(Long)(Thousands)": "135300683",
+    "OpenInterest(Short)": "59396",
+    "ContractValueofOpenInterest(Short)(Thousands)": "440482591",
+    "OpenInterest(Net)": "-41151",
+    "ContractValueofOpenInterest(Net)(Thousands)": "-305181908"
+  }
+]

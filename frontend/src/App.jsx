@@ -693,8 +693,8 @@ function App() {
                             {(twData.chips?.institutional || []).map(chip => (
                               <tr key={chip.entity} className="hover:bg-gray-50 transition-colors">
                                 <td className="px-4 py-2 font-bold text-textMain font-sans">{chip.entity}</td>
-                                <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.twse_net >= 0 ? 'text-tw-up' : 'text-tw-down'}>{chip.twse_net.toLocaleString()}</span></td>
-                                <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.tpex_net >= 0 ? 'text-tw-up' : 'text-tw-down'}>{chip.tpex_net.toLocaleString()}</span></td>
+                                <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.twse_net >= 0 ? 'text-textMain' : 'text-red-600'}>{chip.twse_net > 0 ? '+' : ''}{chip.twse_net.toLocaleString()}</span></td>
+                                <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.tpex_net >= 0 ? 'text-textMain' : 'text-red-600'}>{chip.tpex_net > 0 ? '+' : ''}{chip.tpex_net.toLocaleString()}</span></td>
                               </tr>
                             ))}
                           </tbody>
@@ -713,8 +713,8 @@ function App() {
                             {(twData.chips?.futures || []).map(chip => (
                               <tr key={chip.entity} className="hover:bg-gray-50 transition-colors">
                                 <td className="px-4 py-2 font-bold text-textMain font-sans">{chip.entity}</td>
-                                <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.net_contracts >= 0 ? 'text-tw-up' : 'text-tw-down'}>{chip.net_contracts.toLocaleString()}</span></td>
-                                <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.oi_contracts >= 0 ? 'text-tw-up' : 'text-tw-down'}>{chip.oi_contracts.toLocaleString()}</span></td>
+                                <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.net_contracts >= 0 ? 'text-textMain' : 'text-red-600'}>{chip.net_contracts > 0 ? '+' : ''}{chip.net_contracts.toLocaleString()}</span></td>
+                                <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.oi_contracts >= 0 ? 'text-textMain' : 'text-red-600'}>{chip.oi_contracts > 0 ? '+' : ''}{chip.oi_contracts.toLocaleString()}</span></td>
                               </tr>
                             ))}
                           </tbody>
@@ -742,11 +742,11 @@ function App() {
                           {(twData.chips?.margin || []).map(chip => (
                             <tr key={chip.market} className="hover:bg-gray-50 transition-colors">
                               <td className="px-4 py-2 font-bold text-textMain font-sans whitespace-nowrap">{chip.market}</td>
-                              <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.margin_change >= 0 ? 'text-tw-up' : 'text-tw-down'}>{(chip.margin_change/100000).toFixed(2)}</span></td>
+                              <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.margin_change >= 0 ? 'text-textMain' : 'text-red-600'}>{chip.margin_change > 0 ? '+' : ''}{(chip.margin_change/100000).toFixed(2)}</span></td>
                               <td className="px-4 py-2 text-right font-medium tabular-nums"><span className="text-textMain">{(chip.margin_bal/100000).toFixed(2)}</span></td>
-                              <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.short_change >= 0 ? 'text-tw-up' : 'text-tw-down'}>{(chip.short_change/10000).toFixed(2)}</span></td>
+                              <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.short_change >= 0 ? 'text-textMain' : 'text-red-600'}>{chip.short_change > 0 ? '+' : ''}{(chip.short_change/10000).toFixed(2)}</span></td>
                               <td className="px-4 py-2 text-right font-medium tabular-nums"><span className="text-textMain">{(chip.short_bal/10000).toFixed(2)}</span></td>
-                              <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.lend_change >= 0 ? 'text-tw-up' : 'text-tw-down'}>{(chip.lend_change/10000).toFixed(2)}</span></td>
+                              <td className="px-4 py-2 text-right font-medium tabular-nums"><span className={chip.lend_change >= 0 ? 'text-textMain' : 'text-red-600'}>{chip.lend_change > 0 ? '+' : ''}{(chip.lend_change/10000).toFixed(2)}</span></td>
                               <td className="px-4 py-2 text-right font-medium tabular-nums"><span className="text-textMain">{(chip.lend_bal/10000).toFixed(2)}</span></td>
                             </tr>
                           ))}
